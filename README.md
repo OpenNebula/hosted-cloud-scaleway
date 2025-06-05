@@ -2,6 +2,27 @@
 
 Deployment and configuration specific to Cloud Provider. This repo is extends on the [one-deploy-validation](https://github.com/OpenNebula/one-deploy-validation).
 
+## First time template repo setup
+
+
+1. Rename all occurances of "cloud-provider" to the new Cloud Provider "new-cp":
+
+   ```shell
+   find . -type f ! -name 'README.md' -not -path "./.git/*" -exec sed -i 's/cloud-provider/new-cp/g' {} +
+   ```
+
+1. Add the submodule to the repository:
+
+   ```shell
+   git submodule add git@github.com:OpenNebula/one-deploy-validation.git submodule-one-deploy-validation
+   ```
+
+1. The repository is ready to start working on the deployment values of OpenNebula, specific to the new Cloud Provider. Replace all "<<TBA>>" occurances:
+
+   ```shell
+   grep -nR "<<TBA>>" .
+   ```
+
 ## Requirements
 
 > [!NOTE]
