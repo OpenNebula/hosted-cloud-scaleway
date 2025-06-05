@@ -8,7 +8,10 @@ Deployment and configuration specific to Cloud Provider. This repo is extends on
 1. Rename all occurances of "cloud-provider" to the new Cloud Provider "new-cp":
 
    ```shell
-   find . -type f ! -name 'README.md' -not -path "./.git/*" -exec sed -i 's/cloud-provider/new-cp/g' {} +
+   new_cp_name=new-cp
+   find . -type f ! -name 'README.md' -not -path "./.git/*" -not -path "./submodule-one-deploy-validation/*" -exec sed -i 's/cloud-provider/'$new_cp_name'/g' {} +
+   mv inventory/cloud-provider.yml inventory/$new_cp_name.yml
+   mv playbooks/cloud-provider.yml playbooks/$new_cp_name.yml
    ```
 
 1. Add the submodule to the repository:
