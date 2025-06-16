@@ -1,6 +1,6 @@
 # Template for OpenNebula integration with a Cloud Provider
 
-Deployment and configuration specific to Cloud Provider. This repo is extends on the [one-deploy-validation](https://github.com/OpenNebula/one-deploy-validation).
+Automation for OpenNebula deployment, configuration and verifiation on a specific Cloud Provider's platform. This repo is extends on the [one-deploy-validation](https://github.com/OpenNebula/one-deploy-validation).
 
 > [!IMPORTANT]
 >  
