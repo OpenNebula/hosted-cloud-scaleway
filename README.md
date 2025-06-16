@@ -83,7 +83,7 @@ This section describes the launch of the automated commands for OpenNebula's dep
 1. Some specific make targets for deployment and verification are exposed from the submodule. To deploy with the default inventory file, using the submodule's tooling:
 
    ```shell
-   make main
+   make deployment
    ```
 
 1. Launch the specific automations that cover the gap from an out-of-the-box OpenNebula deployment, to make it fully operational on the cloud provider's infrastructure:
