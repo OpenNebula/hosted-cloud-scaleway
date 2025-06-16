@@ -17,6 +17,6 @@ submodule-requirements:
 main verification:
 	$(MAKE) -C submodule-one-deploy-validation I=$(SELF)/inventory/cloud-provider.yml $@
 
-cloud-provider: $(ENV_CSP_DEFAULT)
+specifics: $(ENV_CSP_DEFAULT)
 	cd $(SELF)/ && \
 	$(call ENV_RUN,cloud-provider-default) ansible-playbook $(SELF)/playbooks/cloud-provider.yml
