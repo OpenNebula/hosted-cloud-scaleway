@@ -72,6 +72,7 @@ Update the `inventory` values to match the provisioned infrastructure, as descri
 | VXLAN PHYDEV                                 | `vn.vxlan.template.PHYDEV`          | `inventory/*.yml`                               | 
 | pubridge PHYDEV                              | `vn.pubridge.template.PHYDEV`       | `inventory/*.yml`                               | 
 | VMs Public IP Range                        | `vn.pubridge.template.AR.IP`, `vn.pubridge.template.AR.SIZE` | `inventory/*.yml`           | 
+| GUI password of `oneadmin`       | `one_pass` | `inventory/*.yml`           | 
 |  **{Cloud Provider's params}** |  **{Name of variable}** |  **{Affected files}** |.
 
 ## Inventory/Execution
