@@ -3,8 +3,7 @@
 Deployment and configuration specific to Cloud Provider. This repo is extends on the [one-deploy-validation](https://github.com/OpenNebula/one-deploy-validation).
 
 > [!IMPORTANT]
-> <div style="background-color:rgb(251, 188, 148); border-left: 4px solid #0366d6; padding: 1em;">
-> 
+>  
 > ## First time template repo setup -- TO BE REMOVED FROM THE TEMPLATE
 > 
 > 1. Rename all occurances of "cloud-provider" to the new Cloud Provider "new-cp":
@@ -32,7 +31,7 @@ Deployment and configuration specific to Cloud Provider. This repo is extends on
 > 
 > 1. Implement the specific automations required on the cloud providers infrastructure to make OpenNebula fully functional (public IP routing, platform-specific configurations, etc.), as tested by the verification steps.
 > 
-> </div>
+> 
 
 ## Requirements
 
@@ -59,7 +58,7 @@ Deployment and configuration specific to Cloud Provider. This repo is extends on
 
 ## Infrastructure provisioning
 
-A detailed guide to provision the required reference infrastructure is published in <span style="background-color: #fff3cd; padding: 2px 4px; border-radius: 2px;">ADD LINK TO THE GUIDE HERE</span>.
+A detailed guide to provision the required reference infrastructure is published in **[{ADD LINK TO THE GUIDE HERE}]()**.
 Follow the provisioning steps and the detailed guide on how to extract the essential parameters needed to proceed with the OpenNebula deployment.
 
 ## Customize the essential parameters
@@ -73,14 +72,13 @@ Update the `inventory` values to match the provisioned infrastructure, as descri
 | VXLAN PHYDEV                                 | `vn.vxlan.template.PHYDEV`          | `inventory/*.yml`                               | 
 | pubridge PHYDEV                              | `vn.pubridge.template.PHYDEV`       | `inventory/*.yml`                               | 
 | VMs Public IP Range                        | `vn.pubridge.template.AR.IP`, `vn.pubridge.template.AR.SIZE` | `inventory/*.yml`           | 
-| <span style="background-color: #fff3cd; padding: 2px 4px; border-radius: 2px;"> Cloud Provider's params </span> | <span style="background-color: #fff3cd; padding: 2px 4px; border-radius: 2px;"> Name of variable </span> | <span style="background-color: #fff3cd; padding: 2px 4px; border-radius: 2px;"> Affected files </span> |.
+|  **{Cloud Provider's params}** |  **{Name of variable}** |  **{Affected files}** |.
 
 ## Inventory/Execution
 
-> [!NOTE]
-> It's exactly the same as with `one-deploy`.
+This section describes the launch of the automated commands for OpenNebula's deployment, configuration and verification. The structure follows the library structure of Ansible, and uses Makefile to wrap the virtual environment management, Ansible commands and their parameters.
 
-1. Inventories are kept in the `./inventory/` directory.
+1. Inventories, playbooks and roles are kept in the `./inventory/`, `./playbooks/` and `./roles/` directories, following Ansible design guidelines.
 
 1. Some specific make targets for deployment and verification are exposed from the submodule. To deploy with the default inventory file, using the submodule's tooling:
 
