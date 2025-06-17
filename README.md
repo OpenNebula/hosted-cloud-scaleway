@@ -15,12 +15,6 @@ Automation for OpenNebula deployment, configuration and verifiation on a specifi
 >    mv playbooks/cloud-provider.yml playbooks/$new_cp_name.yml
 >    ```
 > 
-> 1. Add the submodule to the repository:
-> 
->    ```shell
->    git submodule add git@github.com:OpenNebula/one-deploy-validation.git submodule-one-deploy-validation
->    ```
-> 
 > 1. The repository is ready to start working on the deployment values of OpenNebula, specific to the new Cloud Provider. Replace all "<<TBA>>" occurances:
 > 
 >    ```shell
@@ -47,7 +41,7 @@ Automation for OpenNebula deployment, configuration and verifiation on a specifi
 1. Initialize the dependent `one-deploy-validation` submodule
 
    ```shell
-   git submodule update --init
+   git submodule update --init --remote --merge
    ```
 
 1. Install the `opennebula.deploy` collection with dependencies using the submodule's tooling:
