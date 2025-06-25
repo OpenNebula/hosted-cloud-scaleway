@@ -1,7 +1,3 @@
-# Template for OpenNebula integration with a Cloud Provider
-
-Automation for OpenNebula deployment, configuration and verifiation on a specific Cloud Provider's platform. This repo is extends on the [one-deploy-validation](https://github.com/OpenNebula/one-deploy-validation).
-
 > [!IMPORTANT]
 >  
 > ## First time template repo setup -- TO BE REMOVED FROM THE TEMPLATE
@@ -15,22 +11,32 @@ Automation for OpenNebula deployment, configuration and verifiation on a specifi
 >    mv playbooks/cloud-provider.yml playbooks/$new_cp_name.yml
 >    ```
 > 
-> 1. The repository is ready to start working on the deployment values of OpenNebula, specific to the new Cloud Provider. Replace all "<<TBA>>" occurances:
+> 1. The repository is ready to start working on the deployment values of OpenNebula, specific to the new Cloud Provider. Replace all `<<TBA>>` occurances:
 > 
 >    ```shell
 >    grep -nR "<<TBA>>" .
 >    ```
 >
-> 1. Update the README.md with link to the infrastructure provisions guide, that provides the starting point for this repo's steps. Update the table of essential parameters in the README.md to match the provisioned infrastructure and facilitate easy extraction of the parameters by following the same variable names.
+> 1. Update the README.md with link to the infrastructure provisions guide, that provides the starting point for this repo's steps. Update the table of required parameters in the README.md to match the provisioned infrastructure and facilitate easy extraction of the parameters by following the same variable names. Upload the logo of the cloud provider and make any necessary adjustments.
 > 
 > 1. Implement the specific automations required on the cloud providers infrastructure to make OpenNebula fully functional (public IP routing, platform-specific configurations, etc.), as tested by the verification steps.
 > 
-> 
+>  1. Remove this note from the README.md
+>
+
+**TBA-cloud-provider**: logos of OpenNebula and the Cloud Provider
+
+# Deploying OpenNebula as a Hosted Cloud on TBA-cloud-provider
+
+This repository contains the needed code and documentation to perform an OpenNebula deployment and configuration as 
+a Hosted Cloud on **TBA-cloud-provider** resources. It extends the [one-deploy-validation](https://github.com/OpenNebula/one-deploy-validation) repository, which is added as a git submodule.
+
+- [Requirements](#requirements)
+- [Infrastructure Provisioning](#infrastructure-provisioning)
+- [Required Parameters](#required-parameters)
+- [Deployment and Verification](#deployment-and-verification)
 
 ## Requirements
-
-> [!NOTE]
-> If Makefile is used then it will create python virtual environments using `hatch` (on demand).
 
 1. Install `hatch`
 
@@ -50,44 +56,44 @@ Automation for OpenNebula deployment, configuration and verifiation on a specifi
    make submodule-requirements
    ```
 
-## Infrastructure provisioning
+## Infrastructure Provisioning
 
 A detailed guide to provision the required reference infrastructure is published in **[{ADD LINK TO THE GUIDE HERE}]()**.
-Follow the provisioning steps and the detailed guide on how to extract the essential parameters needed to proceed with the OpenNebula deployment.
+Follow the provisioning steps and extract the requiremed parameters needed to proceed with the OpenNebula deployment.
 
-## Customize the essential parameters
+## Required Parameters
 
-Update the `inventory` values to match the provisioned infrastructure, as described in the above referenced deployment guide. The table below shows the essential parameters that must be updated.
+Update the [inventory](./inventory/) values to match the provisioned infrastructure.
 
 | Description                                 | Variable Names                      | Files/Location                                      |
 |---------------------------------------------|-------------------------------------|-----------------------------------------------------|
-| Frontend Host IP                            | `ansible_host`                      | `inventory/*.yml`    | 
-| KVM Host IPs                            | `ansible_host`                      | `inventory/*.yml`     | 
-| VXLAN PHYDEV                                 | `vn.vxlan.template.PHYDEV`          | `inventory/*.yml`                               | 
-| pubridge PHYDEV                              | `vn.pubridge.template.PHYDEV`       | `inventory/*.yml`                               | 
-| VMs Public IP Range                        | `vn.pubridge.template.AR.IP`, `vn.pubridge.template.AR.SIZE` | `inventory/*.yml`           | 
-| GUI password of `oneadmin`       | `one_pass` | `inventory/*.yml`           | 
+| Frontend Host IP                            | `ansible_host`                      | [inventory/*.yml](./inventory/)    | 
+| KVM Host IPs                            | `ansible_host`                      | [inventory/*.yml](./inventory/)     | 
+| VXLAN PHYDEV                                 | `vn.vxlan.template.PHYDEV`          | [inventory/*.yml](./inventory/)                               | 
+| pubridge PHYDEV                              | `vn.pubridge.template.PHYDEV`       | [inventory/*.yml](./inventory/)                               | 
+| VMs Public IP Range                        | `vn.pubridge.template.AR.IP`, `vn.pubridge.template.AR.SIZE` | [inventory/*.yml](./inventory/)           | 
+| GUI password of `oneadmin`       | `one_pass` | [inventory/*.yml](./inventory/)           | 
 |  **{Cloud Provider's params}** |  **{Name of variable}** |  **{Affected files}** |.
 
-## Inventory/Execution
+## Deployment and Verification
 
-This section describes the launch of the automated commands for OpenNebula's deployment, configuration and verification. The structure follows the library structure of Ansible, and uses Makefile to wrap the virtual environment management, Ansible commands and their parameters.
+Use the provided Makefile commands to automate deployment and testing:
 
-1. Inventories, playbooks and roles are kept in the `./inventory/`, `./playbooks/` and `./roles/` directories, following Ansible design guidelines.
+1. Review the [inventory](./inventory/), [playbooks](./playbooks/) and [roles](./roles/) directories, following Ansible design guidelines.
 
-1. Some specific make targets for deployment and verification are exposed from the submodule. To deploy with the default inventory file, using the submodule's tooling:
+1. Deploy OpenNebula:
 
    ```shell
    make deployment
    ```
 
-1. Launch the specific automations that cover the gap from an out-of-the-box OpenNebula deployment, to make it fully operational on the cloud provider's infrastructure:
+1. Configure the deployment for the specifics of the Cloud Provider:
 
    ```shell
    make specifics
    ```
 
-1. To verify the deployment using the configurations in the default inventory file:
+1. Verify the deployment:
 
    ```shell
    make verification
