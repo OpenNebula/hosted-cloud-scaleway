@@ -19,7 +19,7 @@
 >
 > 1. Update the README.md with link to the infrastructure provisions guide, that provides the starting point for this repo's steps. Update the table of required parameters in the README.md to match the provisioned infrastructure and facilitate easy extraction of the parameters by following the same variable names. Upload the logo of the cloud provider and make any necessary adjustments.
 > 
-> 1. Implement the specific automations required on the cloud providers infrastructure to make OpenNebula fully functional (public IP routing, platform-specific configurations, etc.), as tested by the verification steps.
+> 1. Implement the specific automations required on the cloud providers infrastructure to make OpenNebula fully functional (public IP routing, platform-specific configurations, etc.), as tested by the validation steps.
 > 
 >  1. Remove this note from the README.md
 >
@@ -34,7 +34,7 @@ a Hosted Cloud on **TBA-cloud-provider** resources. It extends the [one-deploy-v
 - [Requirements](#requirements)
 - [Infrastructure Provisioning](#infrastructure-provisioning)
 - [Required Parameters](#required-parameters)
-- [Deployment and Verification](#deployment-and-verification)
+- [Deployment and Validation](#deployment-and-validation)
 
 ## Requirements
 
@@ -44,7 +44,7 @@ a Hosted Cloud on **TBA-cloud-provider** resources. It extends the [one-deploy-v
    pip install hatch
    ```
 
-1. Initialize the dependent `one-deploy-validation` submodule
+1. Initialize the dependent `one-deploy-validation` and `one-deploy` submodules
 
    ```shell
    git submodule update --init --remote --merge
@@ -75,7 +75,7 @@ Update the [inventory](./inventory/) values to match the provisioned infrastruct
 | GUI password of `oneadmin`       | `one_pass` | [inventory/*.yml](./inventory/)           | 
 |  **{Cloud Provider's params}** |  **{Name of variable}** |  **{Affected files}** |.
 
-## Deployment and Verification
+## Deployment and Validation
 
 Use the provided Makefile commands to automate deployment and testing:
 
@@ -93,10 +93,10 @@ Use the provided Makefile commands to automate deployment and testing:
    make specifics
    ```
 
-1. Verify the deployment:
+1. Test the deployment:
 
    ```shell
-   make verification
+   make validation
    ```
 
 For more information about the submodule's tooling, refer to its [README.md](https://github.com/OpenNebula/one-deploy-validation/blob/master/README.md) and for detailed documentation on the deployment automation refer to the [one-deploy repo](https://github.com/OpenNebula/one-deploy).
