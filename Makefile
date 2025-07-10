@@ -8,17 +8,17 @@ $(ENV_CSP_DEFAULT):
 	hatch env create cloud-provider-default
 endif
 
-.PHONY: submodule-requirements deployment verification cloud-provider
+.PHONY: submodule-requirements deployment validation cloud-provider
 
 submodule-requirements:
-	$(MAKE) -C submodule-one-deploy-validation requirements
+	$(MAKE) -C submodule-one-deploy requirements
 
 # Explicitly expose these targets to the parent Makefile.
-verification:
+validation:
 	$(MAKE) -C submodule-one-deploy-validation I=$(SELF)/inventory/cloud-provider.yml $@
 
 deployment: 
-	$(MAKE) -C submodule-one-deploy-validation I=$(SELF)/inventory/cloud-provider.yml main
+	$(MAKE) -C submodule-one-deploy I=$(SELF)/inventory/cloud-provider.yml main
 
 specifics: $(ENV_CSP_DEFAULT)
 	cd $(SELF)/ && \
