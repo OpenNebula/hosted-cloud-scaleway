@@ -90,3 +90,47 @@ In this particular case, the hook can be provided using an Ansible role for Scal
 
 ![Scaleway Hook](https://github.com/user-attachments/assets/8fd87b07-1345-4d0c-a63a-5a7dd9ce86dc)
 
+##### Optionnal CI/CD
+
+##### Optional CI/CD
+
+Given that sensitive tokens are often required to set up an environment, we can create a CI/CD pipeline where user inputs are defined as sensitive variables. This approach ensures secure handling of critical information. The CI/CD pipeline would prompt for the following sensitive inputs:
+
+- Scaleway token (scw token)
+- CIDR blocks
+- Host IP addresses
+
+The CI/CD pipeline can then validate these IP addresses against the provided CIDR blocks. This setup allows for a seamless and effortless environment configuration to deploy this module. Below are the steps involved in the CI/CD pipeline:
+
+1. **Input Validations:** Ensure all provided inputs are valid and correctly formatted.
+2. **Terraform Initialization:** Execute `terraform init` to initialize the Terraform configuration.
+3. **Terraform Plan:** Run `terraform plan` to create an execution plan (this step depends on the successful completion of `terraform init`).
+4. **Manual Terraform Apply:** Manually trigger `terraform apply` to apply the changes required to reach the desired state (this step depends on the successful completion of `terraform plan`).
+5. **Ansible Setup:** Configure Ansible for deployment (this step depends on the successful completion of `terraform apply`).
+6. **Manual Ansible Playbook Validation:** Manually trigger the Ansible playbook `one-deploy-validation` to validate the deployment (this step depends on the successful completion of `terraform apply`).
+7. **Manual Ansible Deployment:** Manually trigger the Ansible playbook `one-deploy` to execute the deployment (this step depends on the successful completion of `terraform apply`).
+8. **Manual Terraform Plan for Destroy:** Manually trigger `terraform plan -destroy` to create a plan to destroy the infrastructure (this step depends on the successful completion of `terraform apply`).
+9. **Manual Terraform Destroy:** Manually trigger `terraform destroy` to destroy the infrastructure (this step depends on the successful completion of `terraform plan -destroy`).
+
+Here is a simple Mermaid diagram illustrating the CI/CD steps:
+
+```mermaid
+graph TD;
+    A[Input Validations] --> B[terraform init];
+    B --> C[terraform plan];
+    C --> D[Manual terraform apply];
+    D --> E[Ansible Setup];
+    D --> F[Manual ansible playbook one-deploy-validation];
+    D --> G[Manual ansible one-deploy];
+    G --> H[Manual terraform plan destroy];
+    F --> H;
+    E --> H;
+    H --> I[Manual terraform destroy];
+```
+
+This diagram provides a visual representation of the CI/CD pipeline steps and their dependencies.
+
+
+
+
+
