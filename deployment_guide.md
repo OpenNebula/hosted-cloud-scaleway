@@ -90,8 +90,6 @@ In this particular case, the hook can be provided using an Ansible role for Scal
 
 ![Scaleway Hook](https://github.com/user-attachments/assets/8fd87b07-1345-4d0c-a63a-5a7dd9ce86dc)
 
-##### Optionnal CI/CD
-
 ##### Optional CI/CD
 
 Given that sensitive tokens are often required to set up an environment, we can create a CI/CD pipeline where user inputs are defined as sensitive variables. This approach ensures secure handling of critical information. The CI/CD pipeline would prompt for the following sensitive inputs:
