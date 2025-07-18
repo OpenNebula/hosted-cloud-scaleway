@@ -1,0 +1,30 @@
+name: Convert Markdown to PDF and Attach to Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # Déclenche uniquement sur tag (ex: v1.0.0)
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Pandoc and LaTeX
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pandoc texlive-xetex
+
+      - name: Convert Markdown to PDF
+        run: |
+          pandoc deployment_guide.md -o deployment_guide.pdf
+
+      - name: Create Release and Upload PDF
+        uses: softprops/action-gh-release@v2
+        with:
+          files: output.pdf
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
