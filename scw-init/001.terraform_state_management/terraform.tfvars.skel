@@ -1,0 +1,11 @@
+state_infrastructure_information = {
+  scw_profile                     = "scw_skeleton_admin"
+  scw_state_bucket                = "skeleton-tfstate"
+  scw_state_region                = "fr-par"
+  scw_state_zone                  = "fr-par-1"
+  scw_organization_id             = "changeme"
+  scw_infrastructure_project_name = "infra"
+}
+
+project_name  = "skeleton"
+customer_name = "skeleton"
