@@ -54,4 +54,4 @@ jobs:
       - name: Assert projects exists
         run:  |
            /scw account project list name=$project_full_name
-           /scw scw object bucket get $tfstate
+           /scw object bucket get $tfstate
