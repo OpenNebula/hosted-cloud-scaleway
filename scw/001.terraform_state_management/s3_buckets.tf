@@ -6,7 +6,7 @@ module "terraform_state_backend" {
 
   project_id         = scaleway_account_project.scw_infrastructure_project.id
   force_destroy      = true
-  name               = var.state_infrastructure_information.scw_state_bucket
+  name               = local.scw_state_bucket
   versioning_enabled = true
 
   versioning_lock_configuration = {
