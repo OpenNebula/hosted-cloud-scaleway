@@ -54,7 +54,7 @@ jobs:
     SCW_DEFAULT_REGION: ${{ inputs.SCW_DEFAULT_REGION }}
     SCW_DEFAULT_ZONE:  ${{ inputs.SCW_DEFAULT_REGION }}-${{ inputs.SCW_DEFAULT_ZONE_NUMBER }}
     TF_VAR_scw_infrastructure_project_name: '{ scw_infrastructure_project_name = "${{ inputs.scw_infrastructure_project_name }}"}'
-    project_full_name = ${{ inputs.TF_VAR_customer_name }}-${{ inputs.TF_VAR_project_name }}-${{ inputs.scw_infrastructure_project_name }}
+    project_full_name = '${{ inputs.TF_VAR_customer_name }}-${{ inputs.TF_VAR_project_name }}-${{ inputs.scw_infrastructure_project_name }}'
   steps:
     - name: Assert projects exists
       run:  |
