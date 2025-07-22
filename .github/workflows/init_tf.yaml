@@ -1,8 +1,5 @@
-on: workflow_dispatch
-
-name: Reusable deploy workflow
 on:
-  workflow_call:
+  workflow_dispatch:
     inputs:
       customer_name:
         required: true
