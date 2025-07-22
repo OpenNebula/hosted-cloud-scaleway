@@ -52,4 +52,4 @@ jobs:
     steps:
       - name: Assert projects exists
         run:  |
-           /scw account project get $project_full_name
+           /scw account project list name=$project_full_name
