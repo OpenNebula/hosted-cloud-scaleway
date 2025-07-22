@@ -40,20 +40,20 @@ on:
         default: 'infra'
 
 jobs:
- init-test-project-exists:
-  runs-on: scaleway/cli:latest
-  env: 
-    TF_VAR_customer_name:  ${{ inputs.TF_VAR_customer_name }}
-    TF_VAR_project_name: ${{ inputs.TF_VAR_project_name }}
-    SCW_ACCESS_KEY: ${{ inputs.SCW_ACCESS_KEY }}
-    SCW_SECRET_KEY: ${{ inputs.SCW_SECRET_KEY }}
-    SCW_DEFAULT_ORGANIZATION_ID:  ${{ inputs.SCW_DEFAULT_ORGANIZATION_ID }}
-    SCW_DEFAULT_REGION: ${{ inputs.SCW_DEFAULT_REGION }}
-    SCW_DEFAULT_ZONE:  ${{ inputs.SCW_DEFAULT_REGION }}-${{ inputs.SCW_DEFAULT_ZONE_NUMBER }}
-    TF_VAR_scw_infrastructure_project_name: '{ scw_infrastructure_project_name = "${{ inputs.scw_infrastructure_project_name }}"}'
-    project_full_name: "${{ inputs.TF_VAR_customer_name }}-${{ inputs.TF_VAR_project_name }}-${{ inputs.scw_infrastructure_project_name }}"
-  steps:
-    - name: Assert projects exists
-      run:  |
-         echo $TF_VAR_scw_infrastructure_project_name
-         scw account project get $project_full_name
+  init-test-project-exists:
+    runs-on: scaleway/cli:latest
+    env: 
+      TF_VAR_customer_name:  ${{ inputs.TF_VAR_customer_name }}
+      TF_VAR_project_name: ${{ inputs.TF_VAR_project_name }}
+      SCW_ACCESS_KEY: ${{ inputs.SCW_ACCESS_KEY }}
+      SCW_SECRET_KEY: ${{ inputs.SCW_SECRET_KEY }}
+      SCW_DEFAULT_ORGANIZATION_ID:  ${{ inputs.SCW_DEFAULT_ORGANIZATION_ID }}
+      SCW_DEFAULT_REGION: ${{ inputs.SCW_DEFAULT_REGION }}
+      SCW_DEFAULT_ZONE:  ${{ inputs.SCW_DEFAULT_REGION }}-${{ inputs.SCW_DEFAULT_ZONE_NUMBER }}
+      TF_VAR_scw_infrastructure_project_name: '{ scw_infrastructure_project_name = "${{ inputs.scw_infrastructure_project_name }}"}'
+      project_full_name: "${{ inputs.TF_VAR_customer_name }}-${{ inputs.TF_VAR_project_name }}-${{ inputs.scw_infrastructure_project_name }}"
+    steps:
+      - name: Assert projects exists
+        run:  |
+           echo $TF_VAR_scw_infrastructure_project_name
+           scw account project get $project_full_name
