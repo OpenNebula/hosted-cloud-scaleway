@@ -40,7 +40,7 @@ on:
         default: 'infra'
 
 jobs:
-  init-test-project-exists:
+ init-test-project-exists:
   runs-on: scaleway/cli:latest
   env: 
     TF_VAR_customer_name:  ${{ inputs.TF_VAR_customer_name }}
