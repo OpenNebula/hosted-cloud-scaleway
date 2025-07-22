@@ -40,11 +40,11 @@ jobs:
     container:
       image: scaleway/cli:latest
     env: 
-      TF_VAR_customer_name:  ${{ inputs.TF_VAR_customer_name }}
-      TF_VAR_project_name: ${{ inputs.TF_VAR_project_name }}
+      TF_VAR_customer_name:  ${{ inputs.customer_name }}
+      TF_VAR_project_name: ${{ inputs.project_name }}
       SCW_ACCESS_KEY: ${{ secrets.SCW_ACCESS_KEY }}
       SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
-      SCW_DEFAULT_ORGANIZATION_ID:  ${{ inputs.SCW_DEFAULT_ORGANIZATION_ID }}
+      SCW_DEFAULT_ORGANIZATION_ID:  ${{ secrets.SCW_DEFAULT_ORGANIZATION_ID }}
       SCW_DEFAULT_REGION: ${{ inputs.SCW_DEFAULT_REGION }}
       SCW_DEFAULT_ZONE:  ${{ inputs.SCW_DEFAULT_REGION }}-${{ inputs.SCW_DEFAULT_ZONE_NUMBER }}
       TF_VAR_scw_infrastructure_project_name: '{ scw_infrastructure_project_name = "${{ inputs.scw_infrastructure_project_name }}"}'
