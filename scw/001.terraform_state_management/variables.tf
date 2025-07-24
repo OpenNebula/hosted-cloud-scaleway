@@ -13,3 +13,19 @@ variable "state_infrastructure_information" {
     scw_infrastructure_project_name = string
   })
 }
+
+variable "tfstate" {
+  type = string
+}
+
+variable "region" {
+  type = string
+}
+
+variable "project_fullname" {
+  type = string
+}
+
+variable "access_key" {
+  type = string
+}
