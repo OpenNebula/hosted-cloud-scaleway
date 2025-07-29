@@ -1,9 +1,5 @@
 ---
 - hosts: "{{ frontend_group | d('frontend') }}"
-  roles:
-    - role: example
           
 - hosts: "{{ node_group | d('node') }}"
-  roles:
-    - role: example
 

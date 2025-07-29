@@ -1,0 +1,45 @@
+#!/bin/bash
+# Functions definition
+run_and_capture_exit_code() {
+  "$@"
+  last_exit_code=$?
+  return $last_exit_code
+}
+
+
+### Install basic commands ###
+echo -e "\033[1;32m--- Install Basic commands ---\033[0m"
+apt install net-tools -y
+### Firewall management ###
+echo -e "\033[1;32m--- Firewall management ---\033[0m"
+
+
+# Write the YAML configuration to the file.
+tee /etc/netplan/51-private-network.yaml > /dev/null <<EOF
+network:
+  version: 2
+  vlans:
+    ${baremetal_server_interface_name}.${private_network_vlan_assignment}:
+      id: ${private_network_vlan_assignment}
+      link: ${baremetal_server_interface_name}
+      addresses:
+        - ${baremetal_server_ipam_address}
+EOF
+
+# Cat the network configuration yaml file
+echo "Network configuration content (/etc/netplan/51-private-network.yaml):" && cat /etc/netplan/51-private-network.yaml
+
+# Set rights on the YAML file.
+run_and_capture_exit_code chmod 600 /etc/netplan/51-private-network.yaml
+
+# File creation check.
+if [ "$last_exit_code" -eq 0 ]
+then
+  echo "Netplan File: File /etc/netplan/51-private-network.yaml has been created."
+else
+  echo "Netplan File: File /etc/netplan/51-private-network.yaml not created - Error code $last_exit_code"
+fi
+
+netplan apply
+
+ip route get 1 | awk '{print $5; exit}' > /tmp/interface_name.txt
