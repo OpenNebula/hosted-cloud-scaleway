@@ -1,8 +1,15 @@
-data "scaleway_baremetal_os" "ubuntu_jammy" {
+data "scaleway_baremetal_os" "ubuntu_noble" {
   zone    = var.zone 
   name    = "Ubuntu"
-  version = "22.04 LTS (Jammy Jellyfish)"
+  version = "24.04 LTS (Noble Numbat)"
 }
+
+data "scaleway_baremetal_os" "debian_bookworm" {
+  zone    = var.zone
+  name    = "Debian"
+  version = "12 (Bookworm)"
+}
+
 
 resource "scaleway_iam_ssh_key" "temp_ssh_key" {
   name       = "tf generated ssh_key"
@@ -19,6 +26,12 @@ data "scaleway_baremetal_offer" "EM-A610R-NVME" {
   subscription_period = "hourly"
 }
 
+data "scaleway_baremetal_offer" "EM-A115X-SSD" {
+  zone                = var.zone
+  name                = "EM-A115X-SSD"
+  subscription_period = "hourly"
+}
+
 data "scaleway_baremetal_option" "private_network" {
   zone = var.zone
   name = "Private Network"
@@ -28,7 +41,7 @@ resource "scaleway_baremetal_server" "opennebula-web" {
   zone            = var.zone
   name            = "opennebula-web"
   offer           = data.scaleway_baremetal_offer.EM-A610R-NVME.offer_id
-  os              = data.scaleway_baremetal_os.ubuntu_jammy.os_id
+  os              = data.scaleway_baremetal_os.ubuntu_noble.os_id
   ssh_key_ids     = [scaleway_iam_ssh_key.temp_ssh_key.id]
   private_network {
     id = data.scaleway_vpc_private_network.private_network.id
@@ -49,7 +62,7 @@ resource "scaleway_baremetal_server" "opennebula-worker" {
   name            = "opennebula-worker-${count.index}"
   zone            = var.zone
   offer           = data.scaleway_baremetal_offer.EM-A610R-NVME.offer_id
-  os              = data.scaleway_baremetal_os.ubuntu_jammy.os_id
+  os              = data.scaleway_baremetal_os.ubuntu_noble.os_id
   ssh_key_ids     = [scaleway_iam_ssh_key.temp_ssh_key.id]
   private_network {
     id = data.scaleway_vpc_private_network.private_network.id

@@ -1,0 +1,65 @@
+---
+all:
+  vars:
+    ansible_user: root
+    ensure_keys_for: [root]
+
+    ensure_hostname: true
+    ensure_hosts: true
+
+    unattend_disable: true
+    update_pkg_cache: true
+    features:
+      evpn: false
+
+    one_version: '6.99.85'
+    one_pass: 'opennebula'
+    db_backend: SQLite
+
+    vn:
+      pubridge:
+        managed: true
+        template:
+          VN_MAD: bridge
+          PHYDEV: ${frontend_interaface_pub}
+          BRIDGE: br0
+          AR:
+            TYPE: IP4
+            IP: ${frontend_ip_public}
+            SIZE: 1
+          DNS: 1.1.1.1
+          NETWORK_MASK: 255.255.255.255
+          GATEWAY: 192.168.1.2
+          FILTER_IP_SPOOFING: 'NO'
+          FILTER_MAC_SPOOFING: 'NO'
+
+      vxlan:
+        managed: true
+        template:
+          VN_MAD: vxlan
+          PHYDEV: ${frontend_interaface_priv}
+          BRIDGE: br1
+          VLAN_ID: ${frontend_vlan}
+          FILTER_IP_SPOOFING: 'NO'
+          FILTER_MAC_SPOOFING: 'NO'
+          GUEST_MTU: 1450
+          AR:
+            TYPE: IP4
+            IP: ${frontend_ip_private}
+            SIZE: 48
+          NETWORK_ADDRESS: ${cidrhost(frontend_ip_cidr, 0)}
+          NETWORK_MASK: ${frontend_netmask}
+
+frontend:
+  hosts:
+    fe:
+      { ansible_host: ${frontend_ip_public} }
+
+node:
+  hosts:
+    fe:
+      { ansible_host: ${frontend_ip_public} }
+%{ for i, ip in worker_ips ~}
+    host0${i + 1}:
+      { ansible_host: ${ip} }
+%{ endfor }
