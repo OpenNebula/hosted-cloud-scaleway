@@ -1,5 +1,6 @@
 ---
 ansible_python_interpreter: /usr/bin/python3
+ansible_ssh_private_key_file: scw/003.opennebula_instances/opennebula.pem
 
 validation:
   create_vnet: false
