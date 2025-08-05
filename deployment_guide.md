@@ -42,7 +42,7 @@ The primary objective is to deliver a full-fledged IaaS infrastructure on bare-m
 
 The high-level diagram below illustrates the overall architecture, including the interaction between the OpenNebula Front-end, hypervisor nodes, and networking components.
 
-![High-Level Diagram](./assets/schemascwopennebula.png)
+![High-Level Diagram](./assets/schemascw-opennebula.png)
 
 ### Hardware Specification
 
