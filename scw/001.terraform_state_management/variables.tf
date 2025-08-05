@@ -26,6 +26,3 @@ variable "project_fullname" {
   type = string
 }
 
-variable "access_key" {
-  type = string
-}
