@@ -70,25 +70,218 @@ This setup ensures that the infrastructure is capable of handling a wide range o
 - Utilization of OneDeploy roles and tags.
 - Integration of the OneHook driver in Ansible.
 
-#### Initial Setup
+Got it! Here’s the **final version of the `deployment_guide.md` in English**, merging your current deployment structure, `.secret.skel` variables, original repository instructions, and OpenNebula feedback adjustments:
 
-Terraform is used to create instances and networks, and it generates inventories for Ansible.
+---
 
-#### Setting Up OpenNebula
+# Deployment Guide for Scaleway Hosted Cloud with OpenNebula
 
-For more details, refer to the [OpenNebula Documentation](https://docs.opennebula.io/7.0/software/installation_process/automatic_installation_with_onedeploy/).
+## 1. Prerequisites
 
-![OpenNebula Setup](https://github.com/user-attachments/assets/ae7c4d9e-4384-4dbd-8fb2-165e743e17e4)
+* OpenTofu >= v1.5.0
+* Scaleway API credentials
+* OpenNebula CLI tools (optional)
+* Ansible
 
-Once the inventories are supplied, the setup can proceed using the `one-deploy-validation` and `one-deploy` submodules, which provide generic tasks to configure OpenNebula. This process relies on previously generated inventories and requires SSH and sudoers to be defined.
+---
 
-##### Runtime Hooks
+# Requirements
 
-Hooks must be provided to ensure runtime operations for OpenNebula. These hooks facilitate the hotplugging of public Network Interface Cards (NICs) using a driver specific to each cloud provider. For detailed specifications, refer to the [Hook Driver Documentation](https://docs.opennebula.io/7.0/product/integration_references/system_interfaces/hook_driver/).
+1. Install `hatch`
 
-In this particular case, the hook can be provided using an Ansible role for Scaleway. For more information, see the [Scaleway Guide](https://docs.ansible.com/ansible/latest/collections/community/general/docsite/guide_scaleway.html#ansible-collections-community-general-docsite-guide-scaleway).
+   ```shell
+   pip install hatch
+   ```
 
-![Scaleway Hook](https://github.com/user-attachments/assets/8fd87b07-1345-4d0c-a63a-5a7dd9ce86dc)
+## 2. Repository Setup
+
+### Clone the Repository
+
+```bash
+git clone https://github.com/OpenNebula/hosted-cloud-scaleway.git
+cd hosted-cloud-scaleway
+```
+
+### Initialize Submodules
+
+```bash
+git submodule update --init --remote --merge
+```
+
+### Install Ansible Collections
+
+```bash
+make submodule-requirements
+```
+
+---
+
+## 3. Initialize Secrets File
+
+Copy the skeleton secrets file and configure environment variables:
+
+```bash
+cp .secret.skel .secret
+```
+
+Edit `.secret` and populate:
+
+```bash
+export TF_VAR_customer_name='opennebula'
+export TF_VAR_project_name='opennebula-scw'
+
+export SCW_ACCESS_KEY='<Your Scaleway Access Key>'
+export SCW_SECRET_KEY='<Your Scaleway Secret Key>'
+
+export AWS_ACCESS_KEY_ID=$SCW_ACCESS_KEY
+export AWS_SECRET_ACCESS_KEY=$SCW_SECRET_KEY
+
+export SCW_DEFAULT_ORGANIZATION_ID='<Your Scaleway Organization ID>'
+export SCW_DEFAULT_REGION='fr-par'
+export SCW_DEFAULT_ZONE='fr-par-2'
+
+export TF_VAR_state_infrastructure_information='{ scw_infrastructure_project_name = "string" }'
+export TF_VAR_region=$SCW_DEFAULT_REGION
+export TF_VAR_zone=$SCW_DEFAULT_ZONE
+export TF_VAR_tfstate='any-state-name-tfstates'
+export TF_VAR_project_fullname='projectname-scw-infra'
+export TF_VAR_private_subnet="10.16.0.0/20"
+export TF_VAR_worker_count="1"
+```
+
+Source the file:
+
+```bash
+source .secret
+```
+
+> **Note:** `.secret` is in `.gitignore` and **must never be committed**.
+
+---
+
+## 4. Infrastructure Deployment (Tofu Modules)
+
+The infrastructure is organized into modular directories that must be applied sequentially:
+
+### Module Execution Order:
+
+1. `001.terraform_state_management`
+2. `002.vpc`
+3. `003.opennebula_instances`
+4. `004.opennebula_inventories`
+
+### Execute Each Module:
+
+```bash
+cd <module_directory>
+tofu init
+tofu plan
+tofu apply
+cd ..
+```
+
+#### Example:
+
+```bash
+cd 001.terraform_state_management/
+tofu init
+tofu apply
+cd ..
+```
+
+Repeat for all modules in order.
+
+> **Important:** After successfully applying `004.opennebula_inventories`, return to the repository root and follow the [README.md](https://github.com/OpenNebula/hosted-cloud-scaleway/blob/main/README.md) instructions to complete OpenNebula deployment.
+
+---
+
+## 5. Inventory Validation (Ansible)
+
+Test connectivity to the provisioned hosts using:
+
+```bash
+ansible -i inventory/scaleway.yml all -m ping -b
+```
+
+Expected result:
+
+```json
+fe | SUCCESS => { "changed": false, "ping": "pong" }
+host01 | SUCCESS => { "changed": false, "ping": "pong" }
+```
+
+Ensure:
+
+* SSH key path is correctly defined in `inventory/group_vars/all.yml`:
+
+  ```yaml
+  ansible_ssh_private_key_file: scw/003.opennebula_instances/opennebula.pem
+  ```
+* Hosts are accurately defined in `inventory/scaleway.yml`.
+
+---
+
+## 6. OpenNebula Post Installation
+
+If you need to SSH into the frontend server:
+
+```bash
+ssh -i scw/003.opennebula_instances/opennebula.pem ubuntu@<frontend-server-ip>
+```
+
+1. Deploy OpenNebula:
+
+   ```shell
+   make deployment
+   ```
+
+2. Configure the deployment for the specifics of the Cloud Provider:
+
+   ```shell
+   make specifics
+   ```
+
+3. Test the deployment:
+
+   ```shell
+   make validation
+   ```
+
+---
+## 7. CI/CD Pipeline (WIP)
+
+A GitHub Actions CI/CD pipeline is planned to:
+
+* Automate bare-metal provisioning.
+* Deploy OpenNebula.
+* Handle post-deployment configurations.
+
+> For now, CI/CD is a **Work In Progress (WIP)** and is not required for the minimal viable deployment.
+
+---
+
+## 8. User Workflow Summary
+
+After completing the infrastructure deployment:
+
+* Users will access OpenNebula (via Sunstone UI or CLI).
+* Manage Scaleway bare-metal servers.
+* Orchestrate VMs and networking within OpenNebula.
+
+---
+
+## 9. Known Limitations
+
+* CI/CD pipeline is pending.
+
+---
+
+This guide reflects the current Scaleway integration and will be updated as CI/CD pipelines and automation workflows are developed.
+
+---
+
+Shall I now draft the **email/message to OpenNebula’s Engineering Team** to summarize these changes and provide them this updated guide?
+
 
 ##### Optional CI/CD
 
