@@ -1,7 +1,7 @@
 
-![scw_bg]("./assets/header.png")
+![scw_bg](./assets/header.png)
 
-![opennebula_cloud_logo_white_bg]("./assets/opennebula.svg")  
+![opennebula_cloud_logo_white_bg](./assets/opennebula.svg)  
 
 # Deployment Guide
 
