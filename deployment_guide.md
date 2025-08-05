@@ -190,12 +190,11 @@ cd ..
 ```
 
 Repeat for all modules in order.
-
-> **Important:** After successfully applying `004.opennebula_inventories`, return to the repository root and follow the [README.md](https://github.com/OpenNebula/hosted-cloud-scaleway/blob/main/README.md) instructions to complete OpenNebula deployment.
-
 ---
 
 ## 5. Inventory Validation (Ansible)
+
+** Needs module 004 to be applied ** 
 
 Test connectivity to the provisioned hosts using:
 
