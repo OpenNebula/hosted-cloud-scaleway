@@ -1,12 +1,11 @@
 
+![scw_bg]("./assets/header.png")
 
-<img width="1200" height="627" alt="image" src="https://github.com/user-attachments/assets/f692ad33-f205-4d47-9e48-938c2d81326c" />
-
-![opennebula_cloud_logo_white_bg](https://github.com/user-attachments/assets/130bcaad-6b90-4adc-9971-dcc93c0a1fe5)  
+![opennebula_cloud_logo_white_bg]("./assets/opennebula.svg")  
 
 # Deployment Guide
 
-## 🏗️ Target OpenNebula Architecture
+##  Target OpenNebula Architecture
 
 This section provides a detailed description of the target architecture based on OpenNebula, specifically deployed on Scaleway Elastic Metal instances. The architecture is designed to leverage the robust capabilities of bare-metal servers to deliver a comprehensive Infrastructure-as-a-Service (IaaS) solution.
 
@@ -37,13 +36,13 @@ The primary objective is to deliver a full-fledged IaaS infrastructure on bare-m
 - **Virtual Network:** Utilizes Private Networks within a Virtual Private Cloud (VPC) to ensure secure and isolated communication between instances.
 - **Public Gateway:** For high traffic scenarios, a Public Gateway is the preferred method. However, for initial deployment and Minimum Viable Product (MVP) phases, Public IPs can be directly attached to instances via Network Interface Cards (NIC).
 
-![Networking Diagram](https://github.com/user-attachments/assets/bc13e49d-8c84-4055-80a5-29278e3375c1)
+![Networking Diagram](./assets/schemascw.png)
 
 ### High-Level Diagram
 
 The high-level diagram below illustrates the overall architecture, including the interaction between the OpenNebula Front-end, hypervisor nodes, and networking components.
 
-![High-Level Diagram](https://github.com/user-attachments/assets/c17945c5-d3f5-4e08-a7c1-ff42bba3365e)
+![High-Level Diagram](./assets/schemascwopennebula.png)
 
 ### Hardware Specification
 
