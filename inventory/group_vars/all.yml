@@ -3,11 +3,13 @@ ansible_python_interpreter: /usr/bin/python3
 ansible_ssh_private_key_file: scw/003.opennebula_instances/opennebula.pem
 
 validation:
-  create_vnet: false
+  create_vnet: false 
+  run_storage_benchmark: false
+  run_ha_verifications: false
   conn_matrix:
     bridge_name: br0
     vnet_name: pubridge
   vm:
-    check_connection: true
+    check_connection: false 
     market_name: 'Alpine Linux 3.20'
-  run_storage_benchmark: true
+  run_storage_benchmark: false 

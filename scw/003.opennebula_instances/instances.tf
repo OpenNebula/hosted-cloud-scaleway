@@ -16,8 +16,13 @@ resource "scaleway_iam_ssh_key" "temp_ssh_key" {
   public_key = chomp(tls_private_key.ssh.public_key_openssh)
 }
 
+data "scaleway_vpc" "vpc" {
+  name = "vpc-opennebula-scw-infra"
+}
+
 data "scaleway_vpc_private_network" "private_network" {
-  name = "subnet_private_opennebula" 
+  name = "subnet_private_opennebula"
+  vpc_id = data.scaleway_vpc.vpc.vpc_id
 }
 
 data "scaleway_baremetal_offer" "EM-A610R-NVME" {
