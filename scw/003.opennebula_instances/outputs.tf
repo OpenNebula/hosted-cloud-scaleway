@@ -7,18 +7,6 @@ output "private_ssh_pem" {
   value = tls_private_key.ssh.private_key_pem
 }
 
-output "private_ip_web" {
-  value = data.scaleway_ipam_ip.web_details[local.web_primary_ipam_ip_id].address
-}
-
-output "private_ip_workers" {
-  value = [
-    for ip in data.scaleway_ipam_ip.details :
-    ip.address
-    if !can(regex(":", ip.address))  # exclut les IPv6
-  ]
-}
-
 output "public_ip_web" {
   value = scaleway_baremetal_server.opennebula-web.ipv4[0].address
 }
@@ -27,10 +15,26 @@ output "public_ip_workers" {
   value = [for s in scaleway_baremetal_server.opennebula-worker : s.ipv4[0].address]
 }
 
-output "private_netmask_web" {
-  value = data.scaleway_ipam_ip.web_details[local.web_primary_ipam_ip_id].address_cidr
+output "opennebula_web_server_id" {
+  value = scaleway_baremetal_server.opennebula-web.id
 }
 
-output "vlan_web" {
-  value = local.web_vlan
+output "opennebula_worker_server_ids" {
+  value = [for s in scaleway_baremetal_server.opennebula-worker : s.id]
+}
+
+output "opennebula_web_private_network" {
+  value = scaleway_baremetal_server.opennebula-web.private_network
+}
+
+output "opennebula_worker_private_network" {
+    value = [for s in scaleway_baremetal_server.opennebula-worker : s.private_network]
+}
+
+output "opennebula_worker_flexible_ip" {
+  value = [for ip in scaleway_flexible_ip.opennebula-worker-public-ip : ip.ip_address]
+}
+
+output "opennebula_web_flexible_ip" {
+  value = scaleway_flexible_ip.opennebula-web-public-ip.ip_address
 }

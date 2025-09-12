@@ -1,0 +1,52 @@
+#!/bin/bash
+# Functions definition
+run_and_capture_exit_code() {
+  "$@"
+  last_exit_code=$?
+  return $last_exit_code
+}
+
+
+### Install basic commands ###
+echo -e "\033[1;32m--- Install Basic commands ---\033[0m"
+apt install net-tools -y
+### Firewall management ###
+echo -e "\033[1;32m--- Firewall management ---\033[0m"
+
+# Get the primary interface name (enp5s0)
+iface="enp5s0" # Hardcode to enp5s0 as per user's input
+echo "Detected primary interface: $iface"
+
+# Remove potentially conflicting netplan files
+echo "Ensuring a clean netplan setup..."
+
+# Configure Netplan with DHCP for main IP, and static for flexible IP + VLAN
+tee /etc/netplan/50-scaleway-config.yaml > /dev/null <<EOF
+network:
+  version: 2
+  ethernets:
+    $iface:
+      dhcp4: true
+      dhcp6: no
+      addresses:
+        - ${flexible_public_ip}
+  vlans:
+    $iface.${private_network_vlan_assignment}:
+      id: ${private_network_vlan_assignment}
+      link: $iface
+      addresses: [ "${baremetal_server_ipam_address}" ]
+EOF
+
+# Cat the network configuration yaml file
+echo "Network configuration content (/etc/netplan/50-scaleway-config.yaml):" && cat /etc/netplan/50-scaleway-config.yaml
+
+# Set rights on the YAML file.
+run_and_capture_exit_code chmod 600 /etc/netplan/50-scaleway-config.yaml
+
+# File creation check.
+if [ "$last_exit_code" -eq 0 ]
+then
+  echo "Netplan Files: Files have been created."
+else
+  echo "Netplan Files: Files not created - Error code $last_exit_code"
+fi

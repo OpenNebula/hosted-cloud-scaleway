@@ -1,9 +1,9 @@
-data scaleway_account_project "project" {
+data "scaleway_account_project" "project" {
   name = var.project_fullname
 }
 
 locals {
-  cidr_bits = tonumber(regex("^.+\\/(\\d+)$", data.terraform_remote_state.instances.outputs.private_netmask_web)[0])
+  cidr_bits = tonumber(regex("^.+/(\\d+)", data.terraform_remote_state.instances_net.outputs.private_netmask_web)[0])
   cidr_to_netmask = tomap({
     10 = "255.192.0.0"
     11 = "255.224.0.0"
@@ -28,9 +28,11 @@ locals {
 
   frontend_netmask = local.cidr_to_netmask[local.cidr_bits]
   frontend_ip_public   = data.terraform_remote_state.instances.outputs.public_ip_web
-  frontend_ip_private  = data.terraform_remote_state.instances.outputs.private_ip_web
-  frontend_vlan        = data.terraform_remote_state.instances.outputs.vlan_web
-  frontend_interface   = data.terraform_remote_state.instances.outputs.web_interface
+  frontend_ip_flexible = data.terraform_remote_state.instances.outputs.opennebula_web_flexible_ip
+  frontend_ip_private  = data.terraform_remote_state.instances_net.outputs.private_ip_web
+  frontend_vlan        = data.terraform_remote_state.instances_net.outputs.vlan_web
+  frontend_interface   = data.terraform_remote_state.instances_net.outputs.web_interface
   frontend_ip_cidr = "${local.frontend_ip_private}/${local.cidr_bits}"
   worker_ips = data.terraform_remote_state.instances.outputs.public_ip_workers
+  private_worker_ips = data.terraform_remote_state.instances_net.outputs.private_ip_workers
 }

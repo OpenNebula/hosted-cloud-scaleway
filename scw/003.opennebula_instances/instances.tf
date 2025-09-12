@@ -43,8 +43,8 @@ data "scaleway_baremetal_option" "private_network" {
 }
 
 resource "scaleway_baremetal_server" "opennebula-web" {
-  zone            = var.zone
   name            = "opennebula-web"
+  zone            = var.zone
   offer           = data.scaleway_baremetal_offer.EM-A610R-NVME.offer_id
   os              = data.scaleway_baremetal_os.ubuntu_noble.os_id
   ssh_key_ids     = [scaleway_iam_ssh_key.temp_ssh_key.id]

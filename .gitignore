@@ -5,4 +5,4 @@
 **.tfstate
 *.tfstate
 *.tfstate.backup
-scw/004.opennebula_inventories/generated/*
+scw/00*.opennebula_inventories/generated/*
