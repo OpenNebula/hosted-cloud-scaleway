@@ -1,7 +1,7 @@
 ---
 all:
   vars:
-    ansible_user: ubuntu 
+    ansible_user: ubuntu
     ensure_keys_for: [root]
 
     ensure_hostname: true
@@ -12,57 +12,62 @@ all:
     features:
       evpn: false
 
-    one_version: '6.99.85'
-    one_pass: 'opennebula'
-    db_backend: SQLite
+    one_version: '7.0.0'
+    one_pass: '${one_password}'
+    db_backend: MariaDB
 
     vn:
       pubridge:
         managed: true
         template:
           VN_MAD: bridge
-          PHYDEV: ${frontend_interaface_pub}
+          PHYDEV: ${frontend_interface_pub}
           BRIDGE: br0
           AR:
             TYPE: IP4
-            IP: ${frontend_ip_flexible}
+            IP: ${split("/", frontend_ip_flexible)[0]}
             SIZE: 1
           DNS: 1.1.1.1
           NETWORK_MASK: 255.255.255.255
-          GATEWAY: 192.168.1.2
+          GATEWAY: ${frontend_gateway}
           FILTER_IP_SPOOFING: 'NO'
           FILTER_MAC_SPOOFING: 'NO'
 
-      vxlan:
+      private_ipam:
         managed: true
         template:
-          VN_MAD: vxlan
-          PHYDEV: ${frontend_interaface_priv}
-          BRIDGE: br1
+          VN_MAD: bridge
+          BRIDGE: br${frontend_vlan}
+          PHYDEV: ${frontend_interface_priv}
           VLAN_ID: ${frontend_vlan}
-          FILTER_IP_SPOOFING: 'NO'
-          FILTER_MAC_SPOOFING: 'NO'
-          GUEST_MTU: 1450
           AR:
-            TYPE: IP4
-            IP: ${frontend_ip_private}
-            SIZE: 48
-          NETWORK_ADDRESS: ${cidrhost(frontend_ip_cidr, 0)}
-          NETWORK_MASK: ${frontend_netmask}
+            - IPAM_MAD: scaleway
+              TYPE: IP4
+              SIZE: "100" # Nombre d'IPs à gérer
+              SCW_SECRET_KEY: "${scw_secret_key}"
+              SCW_PRIVATE_NETWORK_ID: "${private_network_id}"
+              SCW_REGION: "${region}"
+              GATEWAY: "${cidrhost(frontend_ip_cidr, 1)}"
+              DNS: "1.1.1.1"
 
 frontend:
   hosts:
     fe:
       ansible_ssh_host: ${frontend_ip_public}
       ansible_host: ${frontend_ip_private}
+      ansible_environment:
+        ONE_AUTH: /var/lib/one/.one/one_auth
 
 node:
   hosts:
     fe:
       ansible_ssh_host: ${frontend_ip_public}
       ansible_host: ${frontend_ip_private}
+      ansible_environment:
+        ONE_AUTH: /var/lib/one/.one/one_auth
 %{ for i, ip in worker_ips ~}
     host0${i + 1}:
       ansible_ssh_host: ${ip}
       ansible_host: ${private_worker_ips[i]}
 %{ endfor }
+

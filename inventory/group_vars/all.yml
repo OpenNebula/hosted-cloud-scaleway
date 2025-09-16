@@ -1,15 +1,42 @@
 ---
 ansible_python_interpreter: /usr/bin/python3
-ansible_ssh_private_key_file: scw/003.opennebula_instances/opennebula.pem
+ansible_ssh_private_key_file: "{{ inventory_dir }}/../scw/003.opennebula_instances/opennebula.pem"
 
 validation:
-  create_vnet: false 
-  run_storage_benchmark: false
-  run_ha_verifications: false
+  run_core_services: true
+  core_services:
+    service_list:
+      - name: opennebula.service
+        desc: OpenNebula core (oned)
+      - name: opennebula-gate.service
+        desc: OpenNebula gate
+      - name: opennebula-flow.service
+        desc: OpenNebula flow
+    check_fireedge_ui: false
+
+  run_storage_benchmark: true
+  storage_benchmark:
+    vnet_name: vlan
+  run_fe_ha: false
+  run_network_benchmark: true
+
+  run_test_vm: true
+  test_vm:
+    create_vnet: false
+    vnet_name: vlan
+    vnet:
+      name: "vlan"
+    vm:
+      check_connection: true
+      market_name: 'Alpine Linux 3.20'
+
+  run_conn_matrix: true
   conn_matrix:
     bridge_name: br0
     vnet_name: pubridge
-  vm:
-    check_connection: false 
-    market_name: 'Alpine Linux 3.20'
-  run_storage_benchmark: false 
+
+  run_vm_ha: true
+  vm_ha:
+    produce_error_method: 'if_down'
+    if_down_params:
+      interface_name: 'br0'

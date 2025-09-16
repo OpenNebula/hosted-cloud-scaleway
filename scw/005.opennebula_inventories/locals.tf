@@ -3,6 +3,8 @@ data "scaleway_account_project" "project" {
 }
 
 locals {
+  private_network_id = data.terraform_remote_state.vpc.outputs.private_network_id
+
   cidr_bits = tonumber(regex("^.+/(\\d+)", data.terraform_remote_state.instances_net.outputs.private_netmask_web)[0])
   cidr_to_netmask = tomap({
     10 = "255.192.0.0"
@@ -28,6 +30,7 @@ locals {
 
   frontend_netmask = local.cidr_to_netmask[local.cidr_bits]
   frontend_ip_public   = data.terraform_remote_state.instances.outputs.public_ip_web
+  frontend_gateway     = cidrhost("${data.terraform_remote_state.instances.outputs.public_ip_web}/24", 1)
   frontend_ip_flexible = data.terraform_remote_state.instances.outputs.opennebula_web_flexible_ip
   frontend_ip_private  = data.terraform_remote_state.instances_net.outputs.private_ip_web
   frontend_vlan        = data.terraform_remote_state.instances_net.outputs.vlan_web

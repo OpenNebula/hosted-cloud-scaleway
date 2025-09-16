@@ -5,4 +5,5 @@
 **.tfstate
 *.tfstate
 *.tfstate.backup
+.python-version
 scw/00*.opennebula_inventories/generated/*

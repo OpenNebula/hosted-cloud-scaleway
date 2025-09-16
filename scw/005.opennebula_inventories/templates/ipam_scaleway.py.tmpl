@@ -1,0 +1,147 @@
+#!/usr/bin/env python3
+import sys
+import requests
+import xml.etree.ElementTree as ET
+import logging
+from datetime import datetime
+import base64
+
+# --- Logging ---
+LOG_FILE = "/var/log/one/ipam_scaleway.log"
+logging.basicConfig(filename=LOG_FILE, level=logging.DEBUG,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
+
+def log(level, message):
+    if level == 'info':
+        logging.info(message)
+    elif level == 'debug':
+        logging.debug(message)
+    elif level == 'error':
+        logging.error(message)
+    print(f"[{datetime.now()}] {level.upper()}: {message}", file=sys.stderr)
+
+# --- Parse XML from OpenNebula ---
+def get_config_from_xml(stdin_xml_b64):
+    try:
+        stdin_xml = base64.b64decode(stdin_xml_b64).decode('utf-8')
+        root = ET.fromstring(stdin_xml)
+    except Exception as e:
+        log('error', f"Impossible de parser l'XML: {e}")
+        sys.exit(1)
+
+    ar_node = root.find('.//AR')
+    if ar_node is None:
+        log('error', "Balise <AR> manquante.")
+        sys.exit(1)
+
+    config = {
+        'scw_token': ar_node.findtext('SCW_SECRET_KEY'),
+        'scw_pn_id': ar_node.findtext('SCW_PRIVATE_NETWORK_ID'),
+        'scw_region': ar_node.findtext('SCW_REGION'),
+        'network_address': ar_node.findtext('NETWORK_ADDRESS'),
+        'gateway': ar_node.findtext('GATEWAY'),
+        'dns': ar_node.findtext('DNS')
+    }
+
+    if not all([config['scw_token'], config['scw_pn_id'], config['scw_region']]):
+        log('error', "SCW_SECRET_KEY, SCW_PRIVATE_NETWORK_ID et SCW_REGION sont obligatoires.")
+        sys.exit(1)
+
+    return config, root
+
+# --- Register address range ---
+def register_address_range(config, ar_node):
+    size = ar_node.findtext('SIZE')
+    if not size:
+        log('error', "SIZE manquant dans l'AR.")
+        sys.exit(1)
+
+    api_url = f"https://api.scaleway.com/ipam/v1/regions/{config['scw_region']}/ips"
+    headers = {"X-Auth-Token": config['scw_token'], "Content-Type": "application/json"}
+    payload = {"is_ipv6": False, "source": {"private_network_id": config['scw_pn_id']}}
+
+    try:
+        response = requests.post(api_url, headers=headers, json=payload)
+        response.raise_for_status()
+        ip_data = response.json()
+        ip_address = ip_data['address'].split('/')[0]
+        log('info', f"Première IP {ip_address} allouée.")
+
+        print(f"""AR = [
+          IPAM_MAD = "scaleway",
+          TYPE = "IP4",
+          IP   = "{ip_address}",
+          SIZE = "{size}",
+          NETWORK_ADDRESS = "{config.get('network_address', '')}",
+          GATEWAY         = "{config.get('gateway', '')}",
+          DNS             = "{config.get('dns', '')}"
+        ]""")
+
+    except requests.exceptions.RequestException as e:
+        log('error', f"Erreur Scaleway API: {e}")
+        sys.exit(1)
+
+# --- Get address ---
+def get_address(config):
+    api_url = f"https://api.scaleway.com/ipam/v1/regions/{config['scw_region']}/ips"
+    headers = {"X-Auth-Token": config['scw_token'], "Content-Type": "application/json"}
+    payload = {"is_ipv6": False, "source": {"private_network_id": config['scw_pn_id']}}
+
+    try:
+        response = requests.post(api_url, headers=headers, json=payload)
+        response.raise_for_status()
+        ip_data = response.json()
+        ip_address = ip_data['address'].split('/')[0]
+        print(f'ADDRESS = [ IP = "{ip_address}", SIZE = 1 ]')
+        log('info', f"IP {ip_address} allouée.")
+    except requests.exceptions.RequestException as e:
+        log('error', f"Erreur Scaleway API: {e}")
+        sys.exit(1)
+
+# --- Free address ---
+def free_address(config, root):
+    ip_to_free = root.findtext('.//ADDRESS/IP')
+    if not ip_to_free:
+        log('error', "IP à libérer non fournie.")
+        sys.exit(1)
+
+    api_url_list = f"https://api.scaleway.com/ipam/v1/regions/{config['scw_region']}/ips?address={ip_to_free}"
+    headers = {"X-Auth-Token": config['scw_token']}
+    try:
+        response = requests.get(api_url_list, headers=headers)
+        response.raise_for_status()
+        data = response.json()
+        ip_id = data['ips'][0]['id']
+    except Exception as e:
+        log('error', f"Impossible de trouver l'IP {ip_to_free}: {e}")
+        sys.exit(1)
+
+    api_url_release = f"https://api.scaleway.com/ipam/v1/regions/{config['scw_region']}/ips/{ip_id}"
+    try:
+        response = requests.delete(api_url_release, headers=headers)
+        response.raise_for_status()
+        log('info', f"IP {ip_to_free} libérée.")
+    except requests.exceptions.RequestException as e:
+        log('error', f"Erreur Scaleway API (delete): {e}")
+        sys.exit(1)
+
+# --- Main ---
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: <driver> <action> <base64_xml>", file=sys.stderr)
+        sys.exit(1)
+
+    action = sys.argv[1]
+    stdin_xml_b64 = sys.argv[2] if len(sys.argv) > 2 else sys.stdin.read()
+    config, root = get_config_from_xml(stdin_xml_b64)
+
+    if action == "register_address_range":
+        register_address_range(config, root.find('.//AR'))
+    elif action == "get_address":
+        get_address(config)
+    elif action == "free_address":
+        free_address(config, root)
+    else:
+        log('info', f"Action {action} non implémentée.")
+        sys.exit(0)
+

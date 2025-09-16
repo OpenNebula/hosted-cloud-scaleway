@@ -21,7 +21,8 @@ resource "ssh_resource" "custom_cloud_init_script_web" {
         private_network_cidr              = data.scaleway_ipam_ip.web_details[local.web_primary_ipam_ip_id].address_cidr
         base_public_ip                    = data.terraform_remote_state.instances.outputs.public_ip_web
         flexible_public_ip                = data.terraform_remote_state.instances.outputs.opennebula_web_flexible_ip
-        gateway                           = cidrhost("${data.terraform_remote_state.instances.outputs.public_ip_web}/24", 1)
+        gateway                           = cidrhost("${data.terraform_remote_state.instances.outputs.public_ip_web}/24", 1),
+        is_web_server                     = true
       }
     )
     destination = "/home/ubuntu/custom_cloud_init.sh"
