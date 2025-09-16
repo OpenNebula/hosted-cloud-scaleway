@@ -1,6 +1,0 @@
----
-# handlers file for ipam_driver_scaleway
-- name: restart opennebula
-  ansible.builtin.service:
-    name: opennebula
-    state: restarted

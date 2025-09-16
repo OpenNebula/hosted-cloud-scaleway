@@ -1,7 +1,5 @@
 ---
 - hosts: "{{ frontend_group | d('frontend') }}"
-  roles:
-    - role: ipam_driver_scaleway
           
 - hosts: "{{ node_group | d('node') }}"
 

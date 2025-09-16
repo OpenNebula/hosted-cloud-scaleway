@@ -1,4 +1,0 @@
----
-# defaults file for ipam_driver_scaleway
-ipam_driver_scaleway_src: "{{ inventory_dir }}/../scw/005.opennebula_inventories/generated/ipam_scaleway.py"
-ipam_driver_scaleway_dest: /var/lib/one/remotes/ipam/ipam_scaleway.py
