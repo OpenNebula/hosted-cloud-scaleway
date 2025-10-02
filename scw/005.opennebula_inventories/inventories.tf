@@ -9,7 +9,7 @@ resource "local_file" "inventory" {
     frontend_ip_cidr        = local.frontend_ip_cidr,
     worker_ips              = local.worker_ips,
     private_worker_ips      = local.private_worker_ips,
-    frontend_interface_priv = "${local.frontend_interface}.${local.frontend_vlan}",
+    frontend_interface_priv = "${local.frontend_interface}",
     frontend_interface_pub  = local.frontend_interface,
     one_password            = var.one_password,
     scw_secret_key          = var.scw_secret_key,

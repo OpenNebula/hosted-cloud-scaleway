@@ -33,23 +33,22 @@ all:
           FILTER_IP_SPOOFING: 'NO'
           FILTER_MAC_SPOOFING: 'NO'
 
-      private_ipam:
+     vxlan: 
         managed: true
         template:
-          VN_MAD: bridge
-          BRIDGE: br${frontend_vlan}
+          VN_MAD: vxlan
           PHYDEV: ${frontend_interface_priv}
-          VLAN_ID: ${frontend_vlan}
+          BRIDGE: br1
+          VLAN_ID: 86
+          FILTER_IP_SPOOFING: 'NO'
+          FILTER_MAC_SPOOFING: 'NO'
+          GUEST_MTU: 1450
           AR:
-            - IPAM_MAD: scaleway
-              TYPE: IP4
-              SIZE: "100" # Nombre d'IPs à gérer
-              SCW_SECRET_KEY: "${scw_secret_key}"
-              SCW_PRIVATE_NETWORK_ID: "${private_network_id}"
-              SCW_REGION: "${region}"
-              GATEWAY: "${cidrhost(frontend_ip_cidr, 1)}"
-              DNS: "1.1.1.1"
-
+            TYPE: IP4
+            IP: 10.1.2.100
+            SIZE: 48
+          NETWORK_ADDRESS: 10.1.2.0
+          NETWORK_MASK: 255.255.255.0
 frontend:
   hosts:
     fe:
