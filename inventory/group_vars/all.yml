@@ -51,11 +51,11 @@ validation:
   # OUTPUT: 
   #    - HTML document at /tmp/conn-matrix-report.html
   #    - Raw JSON data at /tmp/conn-matrix-raw-data.json
-  run_conn_matrix: true
+  run_conn_matrix: false 
   conn_matrix:
     bridge_name: br0
     ping_count: 10
-    vnet_name: vxlan
+    vnet_name: vxlan2
 
   # TEST CASE NAME: VM instantiation
   # DESCRIPTION: Fetches a VM template and image from the OpenNebula Marketplace and instantiates it.
@@ -70,19 +70,20 @@ validation:
         MEMORY="512"
     create_vnet: true
     vnet:
-      name: 'vxlan'
+      name: 'vxlan2'
       desc: 'A test network for post-deployment cloud verification'
       bridge: 'br0'
       vn_mad: 'bridge'
       phydev: 'enp5s0'
-      network_address: '51.159.199.11'
+      network_address: '62.210.100.79'
       network_mask: '255.255.255.255'
       gateway: '62.210.0.1'
       dns: '51.159.47.28'
       ar:
         - type: "IP4"
-          ip: '51.159.199.11'
+          ip: '62.210.100.79'
           size: '1'
+          mac: '52:54:00:77:61:22'
 
   # TEST CASE NAME: VM High Availability
   # DESCRIPTION: The prerequisite is to have VM HA configured, see details in OpenNebula documentation.

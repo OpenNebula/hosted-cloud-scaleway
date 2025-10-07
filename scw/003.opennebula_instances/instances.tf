@@ -31,12 +31,6 @@ data "scaleway_baremetal_offer" "EM-A610R-NVME" {
   subscription_period = "hourly"
 }
 
-data "scaleway_baremetal_offer" "EM-A115X-SSD" {
-  zone                = var.zone
-  name                = "EM-A115X-SSD"
-  subscription_period = "hourly"
-}
-
 data "scaleway_baremetal_option" "private_network" {
   zone = var.zone
   name = "Private Network"
@@ -62,6 +56,11 @@ resource "scaleway_flexible_ip" "opennebula-web-public-ip" {
   server_id = scaleway_baremetal_server.opennebula-web.id
 }
 
+resource "scaleway_flexible_ip_mac_address" "opennebula-web-public-ip-mac" {
+  flexible_ip_id = scaleway_flexible_ip.opennebula-web-public-ip.id
+  type           = "kvm"
+}
+
 resource "scaleway_baremetal_server" "opennebula-worker" {
   count           = var.worker_count
   name            = "opennebula-worker-${count.index}"
@@ -84,3 +83,8 @@ resource "scaleway_flexible_ip" "opennebula-worker-public-ip" {
   server_id     = scaleway_baremetal_server.opennebula-worker[count.index].id
 }
 
+resource "scaleway_flexible_ip_mac_address" "opennebula-worker-public-ip-mac" {
+  count         = var.worker_count
+  flexible_ip_id = scaleway_flexible_ip.opennebula-worker-public-ip[count.index].id
+  type           = "kvm"
+}

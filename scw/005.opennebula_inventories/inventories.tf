@@ -2,6 +2,7 @@ resource "local_file" "inventory" {
   content = templatefile("${path.module}/templates/inventory.yml.tmpl", {
     frontend_ip_public      = local.frontend_ip_public,
     frontend_ip_flexible    = local.frontend_ip_flexible,
+    frontend_ip_flexible_ma = local.frontend_ip_flexible_mac,
     frontend_gateway        = local.frontend_gateway,
     frontend_ip_private     = local.frontend_ip_private,
     frontend_netmask        = local.frontend_netmask,

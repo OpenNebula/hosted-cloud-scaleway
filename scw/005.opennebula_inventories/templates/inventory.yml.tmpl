@@ -27,6 +27,7 @@ all:
             TYPE: IP4
             IP: ${split("/", frontend_ip_flexible)[0]}
             SIZE: 1
+	    MAC: ${frontend_ip_flexible_mac}
           DNS: 1.1.1.1
           NETWORK_MASK: 255.255.255.255
           GATEWAY: ${frontend_gateway}
@@ -38,7 +39,7 @@ all:
         template:
           VN_MAD: vxlan
           PHYDEV: ${frontend_interface_priv}
-          BRIDGE: br1
+          BRIDGE: br0
           VLAN_ID: 86
           FILTER_IP_SPOOFING: 'NO'
           FILTER_MAC_SPOOFING: 'NO'

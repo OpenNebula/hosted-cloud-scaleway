@@ -35,6 +35,14 @@ output "opennebula_worker_flexible_ip" {
   value = [for ip in scaleway_flexible_ip.opennebula-worker-public-ip : ip.ip_address]
 }
 
+output "opennebula_worker_flexible_ip_mac" {
+  value = [for mac in scaleway_flexible_ip_mac_address.opennebula-worker-public-ip-mac : mac.address ]
+}
+
 output "opennebula_web_flexible_ip" {
-  value = scaleway_flexible_ip.opennebula-web-public-ip.ip_address
+  value = scaleway_flexible_ip.opennebula-web-public-ip
+}
+
+output "opennebula_web_flexible_ip_mac" {
+  value = scaleway_flexible_ip_mac_address.opennebula-web-public-ip-mac.address
 }
