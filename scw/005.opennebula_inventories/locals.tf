@@ -31,7 +31,7 @@ locals {
   frontend_netmask 		= local.cidr_to_netmask[local.cidr_bits]
   frontend_ip_public   		= data.terraform_remote_state.instances.outputs.public_ip_web
   frontend_gateway     		= cidrhost("${data.terraform_remote_state.instances.outputs.public_ip_web}/24", 1)
-  frontend_ip_flexible 		= data.terraform_remote_state.instances.outputs.opennebula_web_flexible_ip
+  frontend_ip_flexible 		= data.terraform_remote_state.instances.outputs.opennebula_web_flexible_ip.ip_address
   frontend_ip_flexible_mac 	= data.terraform_remote_state.instances.outputs.opennebula_web_flexible_ip_mac
   frontend_ip_private  		= data.terraform_remote_state.instances_net.outputs.private_ip_web
   frontend_vlan        		= data.terraform_remote_state.instances_net.outputs.vlan_web

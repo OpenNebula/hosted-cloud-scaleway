@@ -55,7 +55,7 @@ validation:
   conn_matrix:
     bridge_name: br0
     ping_count: 10
-    vnet_name: vxlan2
+    vnet_name: test2 
 
   # TEST CASE NAME: VM instantiation
   # DESCRIPTION: Fetches a VM template and image from the OpenNebula Marketplace and instantiates it.

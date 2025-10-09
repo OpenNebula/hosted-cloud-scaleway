@@ -22,7 +22,7 @@ echo "Cleaning up old Netplan configurations..."
 sudo rm -f /etc/netplan/*.yaml
 
 # Configure Netplan with a bridge for public IPs and a VLAN for private network
-tee /etc/netplan/50-cloud-init.yaml > /dev/null <<EOF
+tee /etc/netplan/51-custom-netplan.yaml > /dev/null <<EOF
 network:
   version: 2
   ethernets:
@@ -46,10 +46,10 @@ network:
 EOF
 
 # Cat the network configuration yaml file
-echo "Network configuration content (/etc/netplan/50-cloud-init.yaml):" && cat /etc/netplan/50-cloud-init.yaml
+echo "Network configuration content (/etc/netplan/51-custom-netplan.yaml):" && cat /etc/netplan/51-custom-netplan.yaml
 
 # Set rights on the YAML file.
-run_and_capture_exit_code chmod 600 /etc/netplan/50-cloud-init.yaml
+run_and_capture_exit_code chmod 600 /etc/netplan/51-custom-netplan.yaml
 
 # File creation check.
 if [ "$last_exit_code" -eq 0 ]
