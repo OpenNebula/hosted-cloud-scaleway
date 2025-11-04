@@ -1,0 +1,29 @@
+#!/usr/bin/env python3
+# Purpose: Tear down all tracked Scaleway Flexible IP reservations whenever an address range is removed.
+# Expected input: Base64-encoded OpenNebula XML on stdin (content unused) plus available Scaleway token.
+# Expected output: No stdout content; logs cleanup actions to /var/log/ipam/scw_flexible_ip.log.
+import sys
+from common import read_stdin_xml, StateManager, read_token, detach_fip, delete_fip, log
+
+
+def main():
+    root = read_stdin_xml()
+    if root is None:
+        return 0
+
+    token = read_token()
+
+    with StateManager() as state:
+        for ip, data in list(state.reservations().items()):
+            flex_id = data.get("flexible_ip_id")
+            if token and flex_id:
+                detach_fip(token, flex_id)
+                delete_fip(token, flex_id)
+            state.release(ip)
+
+    log("Address range reservations cleared")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

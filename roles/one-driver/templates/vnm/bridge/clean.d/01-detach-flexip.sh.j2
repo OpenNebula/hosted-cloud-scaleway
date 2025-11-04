@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+# Purpose: Detach and delete a Scaleway Flexible IP during OpenNebula bridge cleanup.
+# Expected input: OpenNebula-provided environment variables (VMID, NIC_ID, etc.) and base64 VM template via stdin.
+# Expected output: No stdout on success; logs detachment workflow to /var/log/vnm/scw-flexip-clean.log.
+set -euo pipefail
+
+LOG_TAG="scw-flexip-clean[$$]"
+ZONE="{{ one_driver_zone }}"
+TOKEN_FILE="{{ one_driver_token_path }}"
+API_ENDPOINT="{{ one_driver_fip_api_endpoint }}"
+STATE_FILE="{{ one_driver_state_file }}"
+LOG_DIR="/var/log/vnm"
+LOG_FILE="${LOG_DIR}/scw-flexip-clean.log"
+
+log() {
+  local msg="$*"
+  local timestamp
+  timestamp="$(date -u '+%Y-%m-%dT%H:%M:%SZ')" || timestamp="unknown"
+  mkdir -p "$LOG_DIR" 2>/dev/null || return 0
+  printf '%s [%s] %s\n' "$timestamp" "$LOG_TAG" "$msg" >> "$LOG_FILE" 2>/dev/null || true
+}
+
+remove_state() {
+  local ip="$1"
+  python3 <<PY
+import json, pathlib
+state_path = pathlib.Path("${STATE_FILE}")
+if not state_path.exists():
+    raise SystemExit(0)
+try:
+    data = json.loads(state_path.read_text())
+except Exception:
+    data = {"reservations": {}}
+reservations = data.get("reservations", {})
+reservations.pop("$ip", None)
+data["reservations"] = reservations
+state_path.write_text(json.dumps(data, indent=2))
+PY
+}
+
+[[ -r "$TOKEN_FILE" ]] || {
+  log "Token file $TOKEN_FILE missing, skipping detach"
+  exit 0
+}
+
+TOKEN="$(tr -d '\r\n' < "$TOKEN_FILE")"
+[[ -n "$TOKEN" ]] || {
+  log "Token empty, skipping detach"
+  exit 0
+}
+
+VM_ID="${VMID:-}"
+NIC_ID="${NIC_ID:-0}"
+VM_DATA="$(cat | base64 -d)"
+NIC_XPATH="/VM/TEMPLATE/NIC[NIC_ID=${NIC_ID}]"
+FIP_ID="$(echo "$VM_DATA" | xpath -e "${NIC_XPATH}/FLEXIBLE_IP_ID/text()" 2>/dev/null || true)"
+[[ -n "$FIP_ID" ]] || {
+  log "No FLEXIBLE_IP_ID for NIC $NIC_ID"
+  exit 0
+}
+
+info_json="$(curl -sf -H "X-Auth-Token: $TOKEN" "$API_ENDPOINT/zones/$ZONE/fips/$FIP_ID")" || {
+  log "Failed to fetch Flexible IP $FIP_ID details for cleanup"
+  exit 0
+}
+
+FIP_IP="$(echo "$info_json" | jq -r '.flexible_ip.ip_address // .flexible_ip.address // .ip_address // empty')"
+FIP_IP="${FIP_IP%%/*}"
+
+payload=$(cat <<JSON
+{
+  "fips_ids": ["$FIP_ID"]
+}
+JSON
+)
+
+if curl -sf -X POST \
+    -H "X-Auth-Token: $TOKEN" \
+    -H "Content-Type: application/json" \
+    -d "$payload" \
+    "$API_ENDPOINT/zones/$ZONE/fips/detach" >/dev/null; then
+  log "Detached Flexible IP $FIP_ID"
+else
+  log "Detaching Flexible IP $FIP_ID failed"
+fi
+
+if curl -sf -X DELETE \
+    -H "X-Auth-Token: $TOKEN" \
+    "$API_ENDPOINT/zones/$ZONE/fips/$FIP_ID" >/dev/null; then
+  log "Deleted Flexible IP $FIP_ID"
+else
+  log "Deleting Flexible IP $FIP_ID failed"
+fi
+
+if [[ -n "$FIP_IP" ]]; then
+  remove_state "$FIP_IP"
+fi
+
+exit 0

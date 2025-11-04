@@ -21,8 +21,11 @@ data "scaleway_vpc" "vpc" {
 }
 
 data "scaleway_vpc_private_network" "private_network" {
-  name = "subnet_private_opennebula"
-  vpc_id = data.scaleway_vpc.vpc.vpc_id
+  private_network_id = data.terraform_remote_state.vpc.outputs.private_network_id
+}
+
+data "scaleway_vpc_private_network" "private_network_vmtovm" {
+  private_network_id = data.terraform_remote_state.vpc.outputs.vmtovm_private_network_id
 }
 
 data "scaleway_baremetal_offer" "EM-A610R-NVME" {
@@ -44,6 +47,9 @@ resource "scaleway_baremetal_server" "opennebula-web" {
   ssh_key_ids     = [scaleway_iam_ssh_key.temp_ssh_key.id]
   private_network {
     id = data.scaleway_vpc_private_network.private_network.id
+  }
+  private_network {
+    id = data.scaleway_vpc_private_network.private_network_vmtovm.id
   }
   options {
     id = data.scaleway_baremetal_option.private_network.option_id
@@ -70,6 +76,9 @@ resource "scaleway_baremetal_server" "opennebula-worker" {
   ssh_key_ids     = [scaleway_iam_ssh_key.temp_ssh_key.id]
   private_network {
     id = data.scaleway_vpc_private_network.private_network.id
+  }
+  private_network {
+    id = data.scaleway_vpc_private_network.private_network_vmtovm.id
   }
   options {
     id = data.scaleway_baremetal_option.private_network.option_id

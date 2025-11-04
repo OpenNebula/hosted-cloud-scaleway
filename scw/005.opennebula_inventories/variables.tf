@@ -35,3 +35,15 @@ variable "scw_secret_key" {
   description = "Scaleway API Secret Key."
   sensitive   = true
 }
+
+variable "flexible_ip_dns" {
+  type        = list(string)
+  description = "DNS resolvers advertised by the Scaleway Flexible IP driver."
+  default     = ["1.1.1.1"]
+}
+
+variable "flexible_ip_permission_sets" {
+  type        = list(string)
+  description = "Permission sets attached to the IAM policy used by the Flexible IP driver (see Scaleway IAM documentation)."
+  default     = ["ElasticMetalFullAccess", "IPAMFullAccess"]
+}

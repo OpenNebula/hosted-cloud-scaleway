@@ -1,0 +1,268 @@
+---
+- name: "Ensure Scaleway driver dependencies are present"
+  ansible.builtin.package:
+    name: "{{ one_driver_dependencies }}"
+    state: present
+  become: true
+
+- name: "Ensure API token for Flexible IP driver is provided"
+  ansible.builtin.assert:
+    that:
+      - (one_driver_flexible_ip_token | length) > 0
+    fail_msg: >
+      one_driver_flexible_ip_token is empty. Provide the Scaleway
+          API key (e.g. via scw_flexible_ip_token inventory variable).
+
+- name: "Ensure Scaleway project ID is provided"
+  ansible.builtin.assert:
+    that:
+      - (one_driver_project_id | length) > 0
+    fail_msg: >
+      one_driver_project_id is empty. Provide the Scaleway project UUID
+      (e.g. via scw_project_id inventory variable).
+
+- name: "Check OpenNebula configuration file"
+  ansible.builtin.stat:
+    path: /etc/one/oned.conf
+  register: _scw_oned_conf
+  become: true
+
+- name: "Ensure directory for Scaleway token exists"
+  ansible.builtin.file:
+    path: "{{ one_driver_token_path | dirname }}"
+    owner: oneadmin
+    group: oneadmin
+    mode: "0750"
+    state: directory
+  become: true
+
+- name: "Ensure logging directories for IPAM and VNM exist"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    owner: oneadmin
+    group: oneadmin
+    mode: "0750"
+    state: directory
+  loop:
+    - /var/log/ipam
+    - /var/log/vnm
+  become: true
+
+- name: "Ensure Flexible IP state directory exists"
+  ansible.builtin.file:
+    path: "{{ one_driver_state_file | dirname }}"
+    owner: oneadmin
+    group: oneadmin
+    mode: "0755"
+    state: directory
+  become: true
+  when: _scw_oned_conf.stat.exists and false
+
+- name: "Ensure Flexible IP state file exists"
+  ansible.builtin.file:
+    path: "{{ one_driver_state_file }}"
+    owner: oneadmin
+    group: oneadmin
+    mode: "0640"
+    state: touch
+  become: true
+  when: _scw_oned_conf.stat.exists and false
+
+- name: "Create IPAM driver directory"
+  ansible.builtin.file:
+    path: "{{ one_driver_ipam_script_dir }}"
+    owner: oneadmin
+    group: oneadmin
+    mode: "0755"
+    state: directory
+  become: true
+
+- name: "Install Scaleway IPAM common helper"
+  ansible.builtin.template:
+    src: ipam/scw_flexible_ip/common.py.j2
+    dest: "{{ one_driver_ipam_script_dir }}/common.py"
+    owner: oneadmin
+    group: oneadmin
+    mode: "0550"
+  become: true
+
+- name: "Install Scaleway IPAM action scripts"
+  ansible.builtin.template:
+    src: "ipam/scw_flexible_ip/{{ item }}.j2"
+    dest: "{{ one_driver_ipam_script_dir }}/{{ item }}"
+    owner: oneadmin
+    group: oneadmin
+    mode: "0550"
+  loop: "{{ one_driver_ipam_scripts }}"
+  become: true
+
+- name: "Write Scaleway API token for driver"
+  ansible.builtin.copy:
+    content: "{{ one_driver_flexible_ip_token }}"
+    dest: "{{ one_driver_token_path }}"
+    owner: oneadmin
+    group: oneadmin
+    mode: "0600"
+  become: true
+
+- name: "Ensure Scaleway bridge hook directories exist"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    owner: oneadmin
+    group: oneadmin
+    mode: "0755"
+    state: directory
+  loop:
+    - "{{ one_driver_vnm_bridge_dir }}/pre.d"
+    - "{{ one_driver_vnm_bridge_dir }}/clean.d"
+  become: true
+
+- name: "Install Scaleway bridge pre hook"
+  ansible.builtin.template:
+    src: vnm/bridge/pre.d/01-attach-flexip.sh.j2
+    dest: "{{ one_driver_vnm_bridge_dir }}/pre.d/01-attach-flexip.sh"
+    owner: oneadmin
+    group: oneadmin
+    mode: "0550"
+  become: true
+
+- name: "Install Scaleway bridge clean hook"
+  ansible.builtin.template:
+    src: vnm/bridge/clean.d/01-detach-flexip.sh.j2
+    dest: "{{ one_driver_vnm_bridge_dir }}/clean.d/01-detach-flexip.sh"
+    owner: oneadmin
+    group: oneadmin
+    mode: "0550"
+  become: true
+
+- name: "Read oned.conf"
+  ansible.builtin.slurp:
+    path: "{{ one_driver_oned_conf_path }}"
+  register: _scw_oned_conf_content
+  when: _scw_oned_conf.stat.exists and false
+  become: true
+
+- name: "Extract IPAM MAD arguments"
+  ansible.builtin.set_fact:
+    one_driver_ipam_matches: >-
+      {{ (_scw_oned_conf_content.content | b64decode)
+         | regex_findall('^\\s*ARGUMENTS\\s*=\\s*"([^"]*)"', multiline=True) }}
+    one_driver_ipam_arguments_raw: >-
+      {{ one_driver_ipam_matches | first | default('-t 1 -i ' ~ one_driver_ipam_name, true) }}
+  when: _scw_oned_conf.stat.exists and false
+
+- name: "Build IPAM MAD driver list"
+  ansible.builtin.set_fact:
+    one_driver_ipam_list: >-
+      {{ (one_driver_ipam_arguments_raw
+          | regex_search('-i\\s*([^" ]*)', '\\1')
+          | default(one_driver_ipam_name)
+          | replace(' ', '')).split(',')
+          | reject('equalto', '') | list }}
+  when: _scw_oned_conf.stat.exists and false
+
+- name: "Ensure scw-flexip driver present"
+  ansible.builtin.set_fact:
+    one_driver_ipam_list: "{{ (one_driver_ipam_list + [one_driver_ipam_name]) | unique }}"
+  when: _scw_oned_conf.stat.exists and false
+
+- name: "Compose normalized IPAM arguments"
+  ansible.builtin.set_fact:
+    one_driver_ipam_arguments_normalized: "-t 1 -i {{ one_driver_ipam_list | join(',') }}"
+  when: _scw_oned_conf.stat.exists and false
+
+- name: "Update IPAM MAD arguments"
+  ansible.builtin.lineinfile:
+    path: "{{ one_driver_oned_conf_path }}"
+    regexp: '^\s*ARGUMENTS\s*='
+    line: '    ARGUMENTS  = "{{ one_driver_ipam_arguments_normalized }}"'
+  when: _scw_oned_conf.stat.exists and false
+  become: true
+  notify: Restart OpenNebula
+
+- name: "Ensure scw-flexip present in IPAM MAD arguments"
+  ansible.builtin.shell: |
+    python3 - <<'PY'
+    import pathlib
+    import re
+
+    path = pathlib.Path("{{ one_driver_oned_conf_path }}")
+    try:
+        text = path.read_text()
+    except FileNotFoundError:
+        raise SystemExit(0)
+
+    pattern = re.compile(r'(IPAM_MAD\s*=\\s*\\[\\s*[^]]*?ARGUMENTS\s*=\\s*"-t\\s+\\d+\\s+-i\\s*)([^"]*)(")', re.S)
+    match = pattern.search(text)
+    if not match:
+        raise SystemExit(0)
+
+    drivers = [d.strip() for d in match.group(2).split(',') if d.strip()]
+    changed = False
+    if "{{ one_driver_ipam_name }}" not in drivers:
+        drivers.append("{{ one_driver_ipam_name }}")
+        new_block = match.group(1) + ",".join(drivers) + match.group(3)
+        text = text[:match.start()] + new_block + text[match.end():]
+        path.write_text(text)
+        changed = True
+
+    print("CHANGED" if changed else "UNCHANGED")
+    PY
+  args:
+    executable: /bin/bash
+  register: _scw_ipam_update
+  changed_when: "'CHANGED' in _scw_ipam_update.stdout"
+  when: _scw_oned_conf.stat.exists
+  become: true
+  notify: Restart OpenNebula
+
+- name: "Gather OpenNebula host IDs"
+  ansible.builtin.command:
+    cmd: onehost list -l ID --csv --no-header
+  become: true
+  become_user: oneadmin
+  register: _scw_host_ids
+  changed_when: false
+  when: _scw_oned_conf.stat.exists
+
+- name: "Show discovered host IDs"
+  ansible.builtin.debug:
+    msg: "Found OpenNebula hosts with IDs: {{ _scw_host_ids.stdout_lines | default([]) }}"
+  when:
+    - _scw_oned_conf.stat.exists
+    - _scw_host_ids.stdout_lines != []
+
+- name: "Synchronize OpenNebula hosts"
+  ansible.builtin.command:
+    cmd: onehost sync --force {{ item }}
+  become: true
+  become_user: oneadmin
+  loop: "{{ _scw_host_ids.stdout_lines }}"
+  register: _scw_onehost_sync
+  changed_when: false
+  failed_when: false
+  when:
+    - _scw_oned_conf.stat.exists
+    - _scw_host_ids.stdout_lines != []
+
+- name: "Display synchronization results"
+  ansible.builtin.debug:
+    msg: |
+      Host ID: {{ item.item }}
+      Synchronization output:
+      {{ item.stdout | default('') }}
+  loop: "{{ (_scw_onehost_sync.results if _scw_onehost_sync is defined else []) }}"
+  when:
+    - _scw_oned_conf.stat.exists
+    - _scw_onehost_sync is defined
+
+- name: "Warn about synchronization failures"
+  ansible.builtin.debug:
+    msg: |
+      onehost sync failed for host ID {{ item.item }} ({{ item.rc }}):
+      {{ item.stderr | default('') }}
+  loop: "{{ (_scw_onehost_sync.results if _scw_onehost_sync is defined else []) }}"
+  when:
+    - _scw_oned_conf.stat.exists
+    - _scw_onehost_sync is defined
+    - (item.rc | default(0)) | int != 0

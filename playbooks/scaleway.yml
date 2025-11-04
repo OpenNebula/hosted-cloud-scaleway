@@ -1,5 +1,8 @@
 ---
 - hosts: "{{ frontend_group | d('frontend') }}"
-          
-- hosts: "{{ node_group | d('node') }}"
+  roles:
+    - role: one-driver
 
+- hosts: "{{ node_group | d('node') }}"
+  roles:
+    - role: one-driver

@@ -14,3 +14,7 @@ variable "project_fullname" {
 variable "private_subnet" {
   type = string
 }
+
+variable "vmtovm_subnet" {
+  type = string
+}

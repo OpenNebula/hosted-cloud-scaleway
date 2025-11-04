@@ -19,6 +19,8 @@ resource "ssh_resource" "custom_cloud_init_script_web" {
         baremetal_server_ipam_address     = data.scaleway_ipam_ip.web_details[local.web_primary_ipam_ip_id].address_cidr
         private_network_vlan_assignment   = local.web_vlan
         private_network_cidr              = data.scaleway_ipam_ip.web_details[local.web_primary_ipam_ip_id].address_cidr
+        vmtovm_vlan_assignment            = local.web_vmtovm_vlan
+        vmtovm_ipam_address               = try(data.scaleway_ipam_ip.web_details[local.web_vmtovm_primary_ipam_ip_id].address_cidr, null)
         base_public_ip                    = data.terraform_remote_state.instances.outputs.public_ip_web
         flexible_public_ip                = data.terraform_remote_state.instances.outputs.opennebula_web_flexible_ip
         gateway                           = cidrhost("${data.terraform_remote_state.instances.outputs.public_ip_web}/24", 1),
@@ -30,6 +32,6 @@ resource "ssh_resource" "custom_cloud_init_script_web" {
   }
 
   commands = [
-    "sudo bash /home/ubuntu/custom_cloud_init.sh && sudo netplan apply",
+    "sudo bash /home/ubuntu/custom_cloud_init.sh && sudo netplan apply && VLAN=${tostring(local.web_vmtovm_vlan)}; if [ -n \"$VLAN\" ]; then sudo ip link property add altname vmtovm dev enp5s0.$VLAN || true; fi"
   ]
 }

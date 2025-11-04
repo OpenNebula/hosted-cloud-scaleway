@@ -1,0 +1,57 @@
+---
+# Default values for the Scaleway OpenNebula driver role.
+
+# Name of the custom IPAM driver.
+one_driver_ipam_name: scw-flexip
+
+# Location where the IPAM script will be installed.
+one_driver_ipam_script_dir: "/var/lib/one/remotes/ipam/{{ one_driver_ipam_name }}"
+
+# File that stores the Scaleway API token used by the IPAM script.
+one_driver_token_path: /var/lib/one/.scw-flexip.token
+
+# Scaleway project identifier used when creating Flexible IPs.
+one_driver_project_id: "{{ scw_project_id | default('') }}"
+
+# Path to oned.conf for OpenNebula configuration.
+one_driver_oned_conf_path: /etc/one/oned.conf
+
+# List of IPAM action scripts to deploy.
+one_driver_ipam_scripts:
+  - register_address_range
+  - unregister_address_range
+  - allocate_address
+  - get_address
+  - free_address
+
+# Persistent state file used to track reserved Flexible IPs.
+one_driver_state_file: "{{ one_driver_ipam_script_dir }}/state.json"
+
+# Default Scaleway zone; can be overridden per environment.
+one_driver_zone: "{{ scw_flexible_ip_zone | default('fr-par-1') }}"
+
+# Network parameters returned by the driver.
+one_driver_network_mask: "{{ scw_flexible_ip_network_mask | default('255.255.255.255') }}"
+one_driver_gateway: "{{ scw_flexible_ip_gateway | default('') }}"
+one_driver_dns_servers: "{{ scw_flexible_ip_dns | default([]) }}"
+
+# API token value. Must be provided by the inventory or playbook.
+one_driver_flexible_ip_token: "{{ scw_flexible_ip_token | default('') }}"
+
+# External API endpoint and logging tag used by the script.
+one_driver_api_endpoint: https://api.scaleway.com/instance/v1
+one_driver_fip_api_endpoint: https://api.scaleway.com/flexible-ip/v1alpha1
+one_driver_logger_tag: scw-flexip
+
+# Type of virtual MAC to request when missing.
+one_driver_mac_type: kvm
+
+# Location of the bridge driver hooks.
+one_driver_vnm_bridge_dir: /var/lib/one/remotes/vnm/bridge
+
+# Packages required by the driver script.
+one_driver_dependencies:
+  - curl
+  - jq
+  - libxml2-utils
+  - python3

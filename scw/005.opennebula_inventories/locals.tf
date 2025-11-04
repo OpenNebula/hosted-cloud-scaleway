@@ -3,7 +3,7 @@ data "scaleway_account_project" "project" {
 }
 
 locals {
-  private_network_id = data.terraform_remote_state.vpc.outputs.private_network_id
+  private_network_id = data.terraform_remote_state.vpc.outputs.vmtovm_private_network_id
 
   cidr_bits = tonumber(regex("^.+/(\\d+)", data.terraform_remote_state.instances_net.outputs.private_netmask_web)[0])
   cidr_to_netmask = tomap({
@@ -39,4 +39,6 @@ locals {
   frontend_ip_cidr 		= "${local.frontend_ip_private}/${local.cidr_bits}"
   worker_ips 			= data.terraform_remote_state.instances.outputs.public_ip_workers
   private_worker_ips 		= data.terraform_remote_state.instances_net.outputs.private_ip_workers
+  frontend_ip_vmtovm		= try(data.terraform_remote_state.instances_net.outputs.vmtovm_ip_web, null)
+  worker_vmtovm_ips 		= try(data.terraform_remote_state.instances_net.outputs.vmtovm_ip_workers, [])
 }

@@ -1,25 +1,16 @@
 output "private_ip_web" {
-  value = [
-    for ip in data.scaleway_ipam_ip.web_details :
-    ip.address
-    if !can(regex(":", ip.address))
-  ][0]
+  value = data.scaleway_ipam_ip.web_details[local.web_primary_ipam_ip_id].address
 }
 
 output "private_ip_workers" {
   value = [
-    for ip in data.scaleway_ipam_ip.details :
-    ip.address
-    if !can(regex(":", ip.address))  # exclut les IPv6
+    for id in local.worker_primary_ipam_ip_ids :
+    data.scaleway_ipam_ip.details[id].address
   ]
 }
 
 output "private_netmask_web" {
-  value = [
-    for ip in data.scaleway_ipam_ip.web_details :
-    ip.address_cidr
-    if !can(regex(":", ip.address))
-  ][0]
+  value = data.scaleway_ipam_ip.web_details[local.web_primary_ipam_ip_id].address_cidr
 }
 
 output "vlan_web" {
@@ -53,5 +44,19 @@ output "stdout_worker" {
   value = [
     for res in ssh_resource.custom_cloud_init_script_workers :
     res.result
+  ]
+}
+
+output "vmtovm_ip_web" {
+  value = try(
+    data.scaleway_ipam_ip.web_details[local.web_vmtovm_primary_ipam_ip_id].address,
+    null
+  )
+}
+
+output "vmtovm_ip_workers" {
+  value = [
+    for id in local.worker_vmtovm_primary_ipam_ip_ids :
+    try(data.scaleway_ipam_ip.details[id].address, null)
   ]
 }

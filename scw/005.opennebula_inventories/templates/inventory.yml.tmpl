@@ -12,6 +12,13 @@ all:
     features:
       evpn: false
 
+    scw_flexible_ip_token: '${flexible_ip_token}'
+    scw_flexible_ip_zone: '${zone}'
+    scw_flexible_ip_network_mask: '255.255.255.255'
+    scw_flexible_ip_gateway: '${frontend_gateway}'
+    scw_flexible_ip_dns: ${flexible_ip_dns}
+    scw_project_id: '${project_id}'
+
     one_version: '7.0.0'
     one_pass: '${one_password}'
     db_backend: MariaDB
@@ -38,9 +45,8 @@ all:
         managed: true
         template:
           VN_MAD: vxlan
-          PHYDEV: ${frontend_interface_priv}
-          BRIDGE: br0
-          VLAN_ID: 86
+          PHYDEV: vmtovm
+	  BRIDGE: vmtovm0
           FILTER_IP_SPOOFING: 'NO'
           FILTER_MAC_SPOOFING: 'NO'
           GUEST_MTU: 1450
@@ -57,6 +63,7 @@ frontend:
       ansible_host: ${frontend_ip_private}
       ansible_environment:
         ONE_AUTH: /var/lib/one/.one/one_auth
+      scw_server_id: ${frontend_server_id}
 
 node:
   hosts:
@@ -65,9 +72,10 @@ node:
       ansible_host: ${frontend_ip_private}
       ansible_environment:
         ONE_AUTH: /var/lib/one/.one/one_auth
+      scw_server_id: ${frontend_server_id}
 %{ for i, ip in worker_ips ~}
     host0${i + 1}:
       ansible_ssh_host: ${ip}
       ansible_host: ${private_worker_ips[i]}
+      scw_server_id: ${worker_server_ids[i]}
 %{ endfor }
-

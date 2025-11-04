@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+# Purpose: Attach a Scaleway Flexible IP to the target server prior to OpenNebula bridge setup.
+# Expected input: OpenNebula-provided environment variables (VMID, NIC_ID, etc.) and base64 VM template via stdin.
+# Expected output: No stdout on success; logs attachment workflow to /var/log/vnm/scw-flexip-pre.log.
+set -euo pipefail
+
+LOG_TAG="scw-flexip-pre[$$]"
+SERVER_ID="{{ scw_server_id | default('') }}"
+ZONE="{{ one_driver_zone }}"
+TOKEN_FILE="{{ one_driver_token_path }}"
+API_ENDPOINT="{{ one_driver_fip_api_endpoint }}"
+STATE_FILE="{{ one_driver_state_file }}"
+LOG_DIR="/var/log/vnm"
+LOG_FILE="${LOG_DIR}/scw-flexip-pre.log"
+
+log() {
+  local msg="$*"
+  local timestamp
+  timestamp="$(date -u '+%Y-%m-%dT%H:%M:%SZ')" || timestamp="unknown"
+  mkdir -p "$LOG_DIR" 2>/dev/null || return 0
+  printf '%s [%s] %s\n' "$timestamp" "$LOG_TAG" "$msg" >> "$LOG_FILE" 2>/dev/null || true
+}
+
+write_state() {
+  local ip="$1" fid="$2" mac="$3" vmid="$4" nic="$5"
+  python3 <<PY
+import json, pathlib
+state_path = pathlib.Path("${STATE_FILE}")
+state_path.parent.mkdir(parents=True, exist_ok=True)
+data = {"reservations": {}}
+if state_path.exists():
+    try:
+        data = json.loads(state_path.read_text())
+    except Exception:
+        data = {"reservations": {}}
+data.setdefault("reservations", {})["$ip"] = {
+    "flexible_ip_id": "$fid",
+    "mac": "$mac",
+    "vmid": "$vmid",
+    "nic_id": "$nic"
+}
+state_path.write_text(json.dumps(data, indent=2))
+PY
+}
+
+[[ -n "$SERVER_ID" ]] || exit 0
+[[ -r "$TOKEN_FILE" ]] || {
+  log "Token file $TOKEN_FILE missing, skipping attachment"
+  exit 0
+}
+
+TOKEN="$(tr -d '\r\n' < "$TOKEN_FILE")"
+[[ -n "$TOKEN" ]] || {
+  log "Token empty, skipping attachment"
+  exit 0
+}
+
+VM_ID="${VMID:-}"
+NIC_ID="${NIC_ID:-0}"
+VM_DATA="$(cat | base64 -d)"
+NIC_XPATH="/VM/TEMPLATE/NIC[NIC_ID=${NIC_ID}]"
+FIP_ID="$(echo "$VM_DATA" | xpath -e "${NIC_XPATH}/FLEXIBLE_IP_ID/text()" 2>/dev/null || true)"
+[[ -n "$FIP_ID" ]] || {
+  log "No FLEXIBLE_IP_ID found for NIC $NIC_ID"
+  exit 0
+}
+
+info_json="$(curl -sf -H "X-Auth-Token: $TOKEN" "$API_ENDPOINT/zones/$ZONE/fips/$FIP_ID")" || {
+  log "Failed to fetch Flexible IP $FIP_ID details"
+  exit 1
+}
+
+FIP_IP="$(echo "$info_json" | jq -r '.flexible_ip.ip_address // .flexible_ip.address // .ip_address // empty')"
+FIP_IP="${FIP_IP%%/*}"
+MAC_ADDR="$(echo "$info_json" | jq -r '.flexible_ip.mac_address.mac_address // .mac_address.mac_address // empty')"
+CURRENT_SERVER="$(echo "$info_json" | jq -r '.flexible_ip.server_id // .server_id // empty')"
+
+if [[ -z "$MAC_ADDR" || "$MAC_ADDR" == "null" ]]; then
+  mac_resp="$(curl -sf -X POST \
+      -H "X-Auth-Token: $TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{"mac_type":"{{ one_driver_mac_type }}"}' \
+      "$API_ENDPOINT/zones/$ZONE/fips/$FIP_ID/mac")" || {
+    log "Failed to generate MAC for $FIP_ID"
+    exit 1
+  }
+  MAC_ADDR="$(echo "$mac_resp" | jq -r '.mac_address.mac_address // empty')"
+fi
+
+if [[ "$CURRENT_SERVER" != "$SERVER_ID" ]]; then
+  payload=$(cat <<JSON
+{
+  "fips_ids": ["$FIP_ID"],
+  "server_id": "$SERVER_ID"
+}
+JSON
+)
+  log "Attaching Flexible IP $FIP_ID to server $SERVER_ID (NIC_ID=$NIC_ID)"
+  if ! curl -sf -X POST \
+      -H "X-Auth-Token: $TOKEN" \
+      -H "Content-Type: application/json" \
+      -d "$payload" \
+      "$API_ENDPOINT/zones/$ZONE/fips/attach" >/dev/null; then
+    log "Attachment failed for $FIP_ID"
+    exit 1
+  fi
+else
+  log "Flexible IP $FIP_ID already attached to target server"
+fi
+
+if [[ -n "$FIP_IP" ]]; then
+  write_state "$FIP_IP" "$FIP_ID" "$MAC_ADDR" "$VM_ID" "$NIC_ID"
+fi
+
+exit 0

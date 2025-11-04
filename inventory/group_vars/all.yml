@@ -51,7 +51,7 @@ validation:
   # OUTPUT: 
   #    - HTML document at /tmp/conn-matrix-report.html
   #    - Raw JSON data at /tmp/conn-matrix-raw-data.json
-  run_conn_matrix: false 
+  run_conn_matrix: true
   conn_matrix:
     bridge_name: br0
     ping_count: 10
@@ -74,6 +74,7 @@ validation:
       desc: 'A test network for post-deployment cloud verification'
       bridge: 'br0'
       vn_mad: 'bridge'
+      ipam_mad: 'scw-flexip'
       phydev: 'enp5s0'
       network_address: '62.210.100.79'
       network_mask: '255.255.255.255'

@@ -15,6 +15,8 @@ echo -e "\033[1;32m--- Firewall management ---\033[0m"
 
 # Get the primary interface name (enps0)
 iface="enp5s0" # Hardcode to enp5s0 as per user's input
+primary_vlan="${private_network_vlan_assignment}"
+vmtovm_vlan="${vmtovm_vlan_assignment}"
 echo "Detected primary interface: $iface"
 
 # Clean up any existing Netplan configurations to avoid conflicts
@@ -43,6 +45,13 @@ network:
       id: ${private_network_vlan_assignment}
       link: $iface
       addresses: [ "${baremetal_server_ipam_address}" ]
+%{ if vmtovm_vlan_assignment != null && vmtovm_ipam_address != null ~}
+    $iface.${vmtovm_vlan_assignment}:
+      id: ${vmtovm_vlan_assignment}
+      link: $iface
+      addresses: [ "${vmtovm_ipam_address}" ]
+      # Altname souhaité: opennebulanet
+%{ endif ~}
 EOF
 
 # Cat the network configuration yaml file
@@ -57,4 +66,17 @@ then
   echo "Netplan Files: Files have been created."
 else
   echo "Netplan Files: Files not created - Error code $last_exit_code"
+fi
+
+echo "Applying netplan configuration..."
+sudo netplan apply
+
+if [ -n "$primary_vlan" ] && [ "$primary_vlan" != "null" ]; then
+  echo "Adding altname hosttohost on interface $iface.$primary_vlan"
+  sudo ip link property add altname hosttohost dev $iface.$primary_vlan || echo "Failed to add altname hosttohost on $iface.$primary_vlan"
+fi
+
+if [ -n "$vmtovm_vlan" ] && [ "$vmtovm_vlan" != "null" ]; then
+  echo "Adding altname vmtovm on interface $iface.$vmtovm_vlan"
+  sudo ip link property add altname vmtovm dev $iface.$vmtovm_vlan || echo "Failed to add altname vmtovm on $iface.$vmtovm_vlan"
 fi
