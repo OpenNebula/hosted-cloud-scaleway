@@ -1,99 +1,191 @@
 #!/usr/bin/env bash
-# Purpose: Detach and delete a Scaleway Flexible IP during OpenNebula bridge cleanup.
+# Purpose: Detach a Scaleway Flexible IP from the target server (post-VM hook).
 # Expected input: OpenNebula-provided environment variables (VMID, NIC_ID, etc.) and base64 VM template via stdin.
-# Expected output: No stdout on success; logs detachment workflow to /var/log/vnm/scw-flexip-clean.log.
+# Expected output: No stdout on success; logs detachment workflow to /var/log/vnm/scw-flexip-post.log.
 set -euo pipefail
 
-LOG_TAG="scw-flexip-clean[$$]"
-ZONE="{{ one_driver_zone }}"
+
+LOG_TAG="scw-flexip-post[$$]"
 TOKEN_FILE="{{ one_driver_token_path }}"
+SERVER_ID_FILE="{{ one_driver_server_id_path | default('/var/lib/one/scw-server-id') }}"
 API_ENDPOINT="{{ one_driver_fip_api_endpoint }}"
-STATE_FILE="{{ one_driver_state_file }}"
 LOG_DIR="/var/log/vnm"
-LOG_FILE="${LOG_DIR}/scw-flexip-clean.log"
+
+LOG_FILE="${LOG_DIR}/scw-flexip-post.log"
 
 log() {
   local msg="$*"
   local timestamp
-  timestamp="$(date -u '+%Y-%m-%dT%H:%M:%SZ')" || timestamp="unknown"
+  timestamp="$(date -u '+Y-%m-%dT%H:%M:%SZ')" || timestamp="unknown"
   mkdir -p "$LOG_DIR" 2>/dev/null || return 0
   printf '%s [%s] %s\n' "$timestamp" "$LOG_TAG" "$msg" >> "$LOG_FILE" 2>/dev/null || true
 }
 
-remove_state() {
-  local ip="$1"
-  python3 <<PY
-import json, pathlib
-state_path = pathlib.Path("${STATE_FILE}")
-if not state_path.exists():
-    raise SystemExit(0)
-try:
-    data = json.loads(state_path.read_text())
-except Exception:
-    data = {"reservations": {}}
-reservations = data.get("reservations", {})
-reservations.pop("$ip", None)
-data["reservations"] = reservations
-state_path.write_text(json.dumps(data, indent=2))
-PY
+log "INFO: Starting driver v1.0.0-alpha1 (post-detach)"
+
+## Extract received data
+xml_content=$(base64 -d)
+log "DEBUG: Raw data received from OpenNebula: $xml_content"
+
+
+## Identify our Scaleway server by reading the ID from a file
+log "INFO: Reading Server ID from file: '$SERVER_ID_FILE'"
+
+[[ -r "$SERVER_ID_FILE" ]] || {
+  log "ERROR: Server ID file '$SERVER_ID_FILE' is missing or unreadable. Aborting."
+  exit 0
+}
+
+# Lire le contenu du fichier (ex: fr-par-2/7f79...) DANS la variable
+SCW_ID_STRING="$(tr -d '\r\n' < "$SERVER_ID_FILE")"
+
+# Coupe la chaîne en deux en utilisant le délimiteur '/'
+ZONE="${SCW_ID_STRING%/*}"
+SERVER_ID="${SCW_ID_STRING#*/}"
+
+log "INFO: Zone identified from file: '$ZONE'"
+log "INFO: Local server ID (SERVER_ID) identified from file: '$SERVER_ID'"
+
+[[ -n "$SERVER_ID" ]]  || {
+  log "ERROR: Failed to parse SERVER_ID from file '$SERVER_ID_FILE'. Content: '$SCW_ID_STRING'. Aborting."
+  exit 0
+}
+[[ -n "$ZONE" ]]  || {
+  log "ERROR: Failed to parse ZONE from file '$SERVER_ID_FILE'. Content: '$SCW_ID_STRING'. Aborting."
+  exit 0
 }
 
 [[ -r "$TOKEN_FILE" ]] || {
-  log "Token file $TOKEN_FILE missing, skipping detach"
+  log "ERROR: Token file '$TOKEN_FILE' is missing or unreadable. Aborting."
   exit 0
 }
 
+log "INFO: Checking token content."
+## Check token
 TOKEN="$(tr -d '\r\n' < "$TOKEN_FILE")"
 [[ -n "$TOKEN" ]] || {
-  log "Token empty, skipping detach"
+  log "ERROR: Token file is empty. Aborting."
   exit 0
 }
 
-VM_ID="${VMID:-}"
-NIC_ID="${NIC_ID:-0}"
-VM_DATA="$(cat | base64 -d)"
-NIC_XPATH="/VM/TEMPLATE/NIC[NIC_ID=${NIC_ID}]"
-FIP_ID="$(echo "$VM_DATA" | xpath -e "${NIC_XPATH}/FLEXIBLE_IP_ID/text()" 2>/dev/null || true)"
+log "INFO: Fetching IP (FIP_IP) from OpenNebula data..."
+## Fetch the AR IP from OpenNebula input data
+FIP_IP="$(echo "$xml_content" | xpath -e "/VM/TEMPLATE/NIC/IP/text()")"
+
+log "INFO: IP (FIP_IP) extracted from data: '$FIP_IP'"
+
+[[ -n "$FIP_IP" ]] || {
+  log "ERROR: Could not extract IP (FIP_IP) from XML data. Aborting."
+  exit 0
+}
+
+log "INFO: API call (GET fips) to list all FIPs and find ID..."
+## Fetch the FIP ID
+fip_resp="$(curl -sf -X GET -H "X-Auth-Token: $TOKEN" -H "Content-Type: application/json" "$API_ENDPOINT/zones/$ZONE/fips")" 
+
+log "DEBUG: API response (GET fips): $fip_resp"
+
+# Filter to find our IP
+FIP_ID="$(echo "$fip_resp" | jq -r --arg ip "$FIP_IP" '.flexible_ips[] | select(.ip_address == $ip) | .id // empty')"
+log "INFO: Filtering: FIP_ID found for IP '$FIP_IP': '$FIP_ID'"
+
+# S'il n'y a pas d'ID de FIP, on ne peut rien faire.
 [[ -n "$FIP_ID" ]] || {
-  log "No FLEXIBLE_IP_ID for NIC $NIC_ID"
+  log "WARNING: FIP_ID not found for IP '$FIP_IP'. Cannot proceed with detachment."
   exit 0
 }
 
+log "INFO: API call (GET fips/$FIP_ID) to fetch FIP details..."
+# Fetch FIP details (MAC and attached server)
 info_json="$(curl -sf -H "X-Auth-Token: $TOKEN" "$API_ENDPOINT/zones/$ZONE/fips/$FIP_ID")" || {
-  log "Failed to fetch Flexible IP $FIP_ID details for cleanup"
-  exit 0
+  log "ERROR: Failed to fetch details for FIP_ID '$FIP_ID'. Aborting."
+  exit 1
 }
 
-FIP_IP="$(echo "$info_json" | jq -r '.flexible_ip.ip_address // .flexible_ip.address // .ip_address // empty')"
-FIP_IP="${FIP_IP%%/*}"
+log "DEBUG: API response (GET fips/$FIP_ID): $info_json"
 
-payload=$(cat <<JSON
+log "INFO: Extracting current server..."
+# Search for the server_id, either at the root or under a 'flexible_ip' key
+CURRENT_SERVER="$(echo "$info_json" | jq -r '.server_id // .flexible_ip.server_id // empty')"
+log "INFO: Currently attached server (CURRENT_SERVER): '$CURRENT_SERVER'"
+
+# SUPPRIMÉ: La section de vérification/création de MAC a été retirée, elle est inutile ici.
+
+
+log "--- Starting detachment logic ---"
+log "INFO: Target FIP_ID: '$FIP_ID'"
+log "INFO: This Server ID: '$SERVER_ID'"
+log "INFO: FIP Currently Attached to: '$CURRENT_SERVER'"
+
+# Cas 1 & 2: L'IP est déjà libre OU attachée à un AUTRE serveur
+# Dans les deux cas, on ne touche à rien.
+if [[ "$CURRENT_SERVER" != "$SERVER_ID" ]]; then
+  if [[ -z "$CURRENT_SERVER" ]]; then
+    log "INFO: FIP '$FIP_ID' is already free. No action needed."
+  else
+    log "WARNING: FIP '$FIP_ID' is attached to a different server ('$CURRENT_SERVER'), not this one ('$SERVER_ID'). Skipping detachment."
+  fi
+  exit 0
+fi
+
+# Cas 3: L'IP est attachée à CE serveur. On la détache.
+log "INFO: FIP '$FIP_ID' is attached to this server ('$SERVER_ID'). Proceeding with detachment."
+
+detach_endpoint="$API_ENDPOINT/zones/$ZONE/fips/detach"
+
+# Payload for detachment
+detach_payload=$(cat <<JSON
 {
   "fips_ids": ["$FIP_ID"]
 }
 JSON
 )
 
-if curl -sf -X POST \
+log "ACTION: API call (POST $detach_endpoint) for FIP '$FIP_ID'..."
+# API call for detachment, capture response and HTTP code
+response_with_code=$(curl -s -X POST \
     -H "X-Auth-Token: $TOKEN" \
     -H "Content-Type: application/json" \
-    -d "$payload" \
-    "$API_ENDPOINT/zones/$ZONE/fips/detach" >/dev/null; then
-  log "Detached Flexible IP $FIP_ID"
-else
-  log "Detaching Flexible IP $FIP_ID failed"
-fi
+    -d "$detach_payload" \
+    -w "\nHTTP_CODE:%{http_code}" \
+    "$detach_endpoint")
 
-if curl -sf -X DELETE \
-    -H "X-Auth-Token: $TOKEN" \
-    "$API_ENDPOINT/zones/$ZONE/fips/$FIP_ID" >/dev/null; then
-  log "Deleted Flexible IP $FIP_ID"
-else
-  log "Deleting Flexible IP $FIP_ID failed"
-fi
+# Extract HTTP code and response body
+http_code=$(echo "$response_with_code" | tail -n1 | cut -d: -f2)
+response_body=$(echo "$response_with_code" | sed '$d') # Remove the last line (HTTP code)
 
-if [[ -n "$FIP_IP" ]]; then
-  remove_state "$FIP_IP"
-fi
+# Handle the response
+case "$http_code" in
+    200|201|202|204) # 200/201 (OK/Created), 202 (Accepted), 204 (No Content) are OK
+        log "SUCCESS: FIP '$FIP_ID' detached from '$CURRENT_SERVER'. (Code: $http_code)"
+        log "DEBUG: API response (detach): $response_body"
+        ;;
+    400)
+        log "ERROR: Bad request (400) during detachment."
+        log "ERROR: API response: $response_body"
+        exit 1
+        ;;
+    401|403)
+        log "ERROR: Invalid token or unauthorized (401/403) during detachment."
+        log "ERROR: API response: $response_body"
+        exit 1
+        ;;
+    404)
+        log "ERROR: Resource not found (404) during detachment (FIP or endpoint)."
+        log "ERROR: API response: $response_body"
+        exit 1
+        ;;
+    405)
+        log "ERROR: Method not allowed (405). Does '$detach_endpoint' accept POST?"
+        log "ERROR: API response: $response_body"
+        exit 1
+        ;;
+    *) # Handle other errors (e.g., 5xx)
+        log "ERROR: Detachment failed. HTTP code: $http_code."
+        log "ERROR: API response: $response_body"
+        exit 1
+        ;;
+esac
 
+log "--- Detachment logic complete ---"
 exit 0

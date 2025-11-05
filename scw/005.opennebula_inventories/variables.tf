@@ -47,3 +47,9 @@ variable "flexible_ip_permission_sets" {
   description = "Permission sets attached to the IAM policy used by the Flexible IP driver (see Scaleway IAM documentation)."
   default     = ["ElasticMetalFullAccess", "IPAMFullAccess"]
 }
+
+variable "flexible_ip_gateway" {
+  type        = string
+  description = "Gateway for Scaleway Flexible IP driver."
+  default     = "62.210.0.1"
+}

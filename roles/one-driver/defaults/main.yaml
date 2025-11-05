@@ -1,31 +1,17 @@
 ---
 # Default values for the Scaleway OpenNebula driver role.
 
-# Name of the custom IPAM driver.
-one_driver_ipam_name: scw-flexip
-
-# Location where the IPAM script will be installed.
-one_driver_ipam_script_dir: "/var/lib/one/remotes/ipam/{{ one_driver_ipam_name }}"
-
 # File that stores the Scaleway API token used by the IPAM script.
 one_driver_token_path: /var/lib/one/.scw-flexip.token
+
+# File that stores the Scaleway Server id in format zone/id.
+one_driver_server_id_path: /var/lib/one/scw-server-id
 
 # Scaleway project identifier used when creating Flexible IPs.
 one_driver_project_id: "{{ scw_project_id | default('') }}"
 
 # Path to oned.conf for OpenNebula configuration.
 one_driver_oned_conf_path: /etc/one/oned.conf
-
-# List of IPAM action scripts to deploy.
-one_driver_ipam_scripts:
-  - register_address_range
-  - unregister_address_range
-  - allocate_address
-  - get_address
-  - free_address
-
-# Persistent state file used to track reserved Flexible IPs.
-one_driver_state_file: "{{ one_driver_ipam_script_dir }}/state.json"
 
 # Default Scaleway zone; can be overridden per environment.
 one_driver_zone: "{{ scw_flexible_ip_zone | default('fr-par-1') }}"
@@ -55,3 +41,4 @@ one_driver_dependencies:
   - jq
   - libxml2-utils
   - python3
+  - libxml-xpath-perl

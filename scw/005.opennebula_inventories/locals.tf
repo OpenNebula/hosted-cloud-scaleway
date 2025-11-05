@@ -36,9 +36,11 @@ locals {
   frontend_ip_private  		= data.terraform_remote_state.instances_net.outputs.private_ip_web
   frontend_vlan        		= data.terraform_remote_state.instances_net.outputs.vlan_web
   frontend_interface   		= data.terraform_remote_state.instances_net.outputs.web_interface
+  frontend_id             	= data.terraform_remote_state.instances.outputs.opennebula_web_server_id
   frontend_ip_cidr 		= "${local.frontend_ip_private}/${local.cidr_bits}"
   worker_ips 			= data.terraform_remote_state.instances.outputs.public_ip_workers
   private_worker_ips 		= data.terraform_remote_state.instances_net.outputs.private_ip_workers
   frontend_ip_vmtovm		= try(data.terraform_remote_state.instances_net.outputs.vmtovm_ip_web, null)
   worker_vmtovm_ips 		= try(data.terraform_remote_state.instances_net.outputs.vmtovm_ip_workers, [])
+  worker_ids            	= data.terraform_remote_state.instances.outputs.opennebula_worker_server_ids
 }

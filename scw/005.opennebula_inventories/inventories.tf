@@ -4,6 +4,7 @@ resource "local_file" "inventory" {
     frontend_ip_flexible     = local.frontend_ip_flexible,
     frontend_ip_flexible_mac = local.frontend_ip_flexible_mac,
     frontend_gateway         = local.frontend_gateway,
+    flexible_ip_gateway      = var.flexible_ip_gateway,
     frontend_ip_private      = local.frontend_ip_private,
     frontend_ip_vmtovm       = local.frontend_ip_vmtovm,
     frontend_netmask         = local.frontend_netmask,
@@ -21,8 +22,8 @@ resource "local_file" "inventory" {
     zone                     = var.zone,
     flexible_ip_token        = scaleway_iam_api_key.opennebula_flexible_ip.secret_key,
     flexible_ip_dns          = jsonencode(var.flexible_ip_dns),
-    frontend_server_id       = data.terraform_remote_state.instances.outputs.opennebula_web_server_id,
-    worker_server_ids        = data.terraform_remote_state.instances.outputs.opennebula_worker_server_ids,
+    frontend_server_id       = local.frontend_id,
+    worker_server_ids        = local.worker_ids,
     project_id               = data.scaleway_account_project.project.id
   })
 

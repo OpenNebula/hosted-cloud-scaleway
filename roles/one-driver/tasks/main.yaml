@@ -36,7 +36,7 @@
     state: directory
   become: true
 
-- name: "Ensure logging directories for IPAM and VNM exist"
+- name: "Ensure logging directories VNM exist"
   ansible.builtin.file:
     path: "{{ item }}"
     owner: oneadmin
@@ -44,62 +44,22 @@
     mode: "0750"
     state: directory
   loop:
-    - /var/log/ipam
     - /var/log/vnm
-  become: true
-
-- name: "Ensure Flexible IP state directory exists"
-  ansible.builtin.file:
-    path: "{{ one_driver_state_file | dirname }}"
-    owner: oneadmin
-    group: oneadmin
-    mode: "0755"
-    state: directory
-  become: true
-  when: _scw_oned_conf.stat.exists and false
-
-- name: "Ensure Flexible IP state file exists"
-  ansible.builtin.file:
-    path: "{{ one_driver_state_file }}"
-    owner: oneadmin
-    group: oneadmin
-    mode: "0640"
-    state: touch
-  become: true
-  when: _scw_oned_conf.stat.exists and false
-
-- name: "Create IPAM driver directory"
-  ansible.builtin.file:
-    path: "{{ one_driver_ipam_script_dir }}"
-    owner: oneadmin
-    group: oneadmin
-    mode: "0755"
-    state: directory
-  become: true
-
-- name: "Install Scaleway IPAM common helper"
-  ansible.builtin.template:
-    src: ipam/scw_flexible_ip/common.py.j2
-    dest: "{{ one_driver_ipam_script_dir }}/common.py"
-    owner: oneadmin
-    group: oneadmin
-    mode: "0550"
-  become: true
-
-- name: "Install Scaleway IPAM action scripts"
-  ansible.builtin.template:
-    src: "ipam/scw_flexible_ip/{{ item }}.j2"
-    dest: "{{ one_driver_ipam_script_dir }}/{{ item }}"
-    owner: oneadmin
-    group: oneadmin
-    mode: "0550"
-  loop: "{{ one_driver_ipam_scripts }}"
   become: true
 
 - name: "Write Scaleway API token for driver"
   ansible.builtin.copy:
     content: "{{ one_driver_flexible_ip_token }}"
     dest: "{{ one_driver_token_path }}"
+    owner: oneadmin
+    group: oneadmin
+    mode: "0600"
+  become: true
+
+- name: "Write Scaleway API Server ID for driver"
+  ansible.builtin.copy:
+    content: "{{ scw_server_id }}"
+    dest: "{{ one_driver_server_id_path }}"
     owner: oneadmin
     group: oneadmin
     mode: "0600"
@@ -141,80 +101,6 @@
   register: _scw_oned_conf_content
   when: _scw_oned_conf.stat.exists and false
   become: true
-
-- name: "Extract IPAM MAD arguments"
-  ansible.builtin.set_fact:
-    one_driver_ipam_matches: >-
-      {{ (_scw_oned_conf_content.content | b64decode)
-         | regex_findall('^\\s*ARGUMENTS\\s*=\\s*"([^"]*)"', multiline=True) }}
-    one_driver_ipam_arguments_raw: >-
-      {{ one_driver_ipam_matches | first | default('-t 1 -i ' ~ one_driver_ipam_name, true) }}
-  when: _scw_oned_conf.stat.exists and false
-
-- name: "Build IPAM MAD driver list"
-  ansible.builtin.set_fact:
-    one_driver_ipam_list: >-
-      {{ (one_driver_ipam_arguments_raw
-          | regex_search('-i\\s*([^" ]*)', '\\1')
-          | default(one_driver_ipam_name)
-          | replace(' ', '')).split(',')
-          | reject('equalto', '') | list }}
-  when: _scw_oned_conf.stat.exists and false
-
-- name: "Ensure scw-flexip driver present"
-  ansible.builtin.set_fact:
-    one_driver_ipam_list: "{{ (one_driver_ipam_list + [one_driver_ipam_name]) | unique }}"
-  when: _scw_oned_conf.stat.exists and false
-
-- name: "Compose normalized IPAM arguments"
-  ansible.builtin.set_fact:
-    one_driver_ipam_arguments_normalized: "-t 1 -i {{ one_driver_ipam_list | join(',') }}"
-  when: _scw_oned_conf.stat.exists and false
-
-- name: "Update IPAM MAD arguments"
-  ansible.builtin.lineinfile:
-    path: "{{ one_driver_oned_conf_path }}"
-    regexp: '^\s*ARGUMENTS\s*='
-    line: '    ARGUMENTS  = "{{ one_driver_ipam_arguments_normalized }}"'
-  when: _scw_oned_conf.stat.exists and false
-  become: true
-  notify: Restart OpenNebula
-
-- name: "Ensure scw-flexip present in IPAM MAD arguments"
-  ansible.builtin.shell: |
-    python3 - <<'PY'
-    import pathlib
-    import re
-
-    path = pathlib.Path("{{ one_driver_oned_conf_path }}")
-    try:
-        text = path.read_text()
-    except FileNotFoundError:
-        raise SystemExit(0)
-
-    pattern = re.compile(r'(IPAM_MAD\s*=\\s*\\[\\s*[^]]*?ARGUMENTS\s*=\\s*"-t\\s+\\d+\\s+-i\\s*)([^"]*)(")', re.S)
-    match = pattern.search(text)
-    if not match:
-        raise SystemExit(0)
-
-    drivers = [d.strip() for d in match.group(2).split(',') if d.strip()]
-    changed = False
-    if "{{ one_driver_ipam_name }}" not in drivers:
-        drivers.append("{{ one_driver_ipam_name }}")
-        new_block = match.group(1) + ",".join(drivers) + match.group(3)
-        text = text[:match.start()] + new_block + text[match.end():]
-        path.write_text(text)
-        changed = True
-
-    print("CHANGED" if changed else "UNCHANGED")
-    PY
-  args:
-    executable: /bin/bash
-  register: _scw_ipam_update
-  changed_when: "'CHANGED' in _scw_ipam_update.stdout"
-  when: _scw_oned_conf.stat.exists
-  become: true
-  notify: Restart OpenNebula
 
 - name: "Gather OpenNebula host IDs"
   ansible.builtin.command:

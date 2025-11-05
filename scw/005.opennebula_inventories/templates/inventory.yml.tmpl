@@ -37,7 +37,7 @@ all:
             MAC: "${frontend_ip_flexible_mac}"
           DNS: 1.1.1.1
           NETWORK_MASK: 255.255.255.255
-          GATEWAY: ${frontend_gateway}
+          GATEWAY: ${flexible_ip_gateway}
           FILTER_IP_SPOOFING: 'NO'
           FILTER_MAC_SPOOFING: 'NO'
 
@@ -46,7 +46,7 @@ all:
         template:
           VN_MAD: vxlan
           PHYDEV: vmtovm
-	  BRIDGE: vmtovm0
+          BRIDGE: vmtovm0
           FILTER_IP_SPOOFING: 'NO'
           FILTER_MAC_SPOOFING: 'NO'
           GUEST_MTU: 1450
