@@ -5,11 +5,9 @@
 set -euo pipefail
 
 LOG_TAG="scw-flexip-pre[$$]"
-SERVER_ID="{{ scw_server_id | default('') }}"
 ZONE="{{ one_driver_zone }}"
 TOKEN_FILE="{{ one_driver_token_path }}"
 API_ENDPOINT="{{ one_driver_fip_api_endpoint }}"
-STATE_FILE="{{ one_driver_state_file }}"
 LOG_DIR="/var/log/vnm"
 LOG_FILE="${LOG_DIR}/scw-flexip-pre.log"
 
@@ -21,60 +19,75 @@ log() {
   printf '%s [%s] %s\n' "$timestamp" "$LOG_TAG" "$msg" >> "$LOG_FILE" 2>/dev/null || true
 }
 
-write_state() {
-  local ip="$1" fid="$2" mac="$3" vmid="$4" nic="$5"
-  python3 <<PY
-import json, pathlib
-state_path = pathlib.Path("${STATE_FILE}")
-state_path.parent.mkdir(parents=True, exist_ok=True)
-data = {"reservations": {}}
-if state_path.exists():
-    try:
-        data = json.loads(state_path.read_text())
-    except Exception:
-        data = {"reservations": {}}
-data.setdefault("reservations", {})["$ip"] = {
-    "flexible_ip_id": "$fid",
-    "mac": "$mac",
-    "vmid": "$vmid",
-    "nic_id": "$nic"
-}
-state_path.write_text(json.dumps(data, indent=2))
-PY
+log "driver v1.0.0-alpha1"
+
+## extract received data
+xml_content=$(base64 -d)
+log "received data from OpenNebula $xml_content"
+
+## Identifying our server on scaleway using cloud init metadata endpoint
+SERVER_ID="$(curl https://cloudinit.brm.par2.scaleway.com/v1/cloudinit/b0bd7196-5816-4781-b62b-bbe6b880e2d0/meta-data --silent | jq .external_id)"
+log "working on server id $SERVER_ID"
+
+
+[[ -n "$SERVER_ID" ]]  || {
+  log "Failed to fetch server id $SERVER_ID ?"
+  exit 0
 }
 
-[[ -n "$SERVER_ID" ]] || exit 0
 [[ -r "$TOKEN_FILE" ]] || {
   log "Token file $TOKEN_FILE missing, skipping attachment"
   exit 0
 }
 
+log "checking token"
+## checking token
 TOKEN="$(tr -d '\r\n' < "$TOKEN_FILE")"
 [[ -n "$TOKEN" ]] || {
   log "Token empty, skipping attachment"
   exit 0
 }
 
-VM_ID="${VMID:-}"
-NIC_ID="${NIC_ID:-0}"
-VM_DATA="$(cat | base64 -d)"
-NIC_XPATH="/VM/TEMPLATE/NIC[NIC_ID=${NIC_ID}]"
-FIP_ID="$(echo "$VM_DATA" | xpath -e "${NIC_XPATH}/FLEXIBLE_IP_ID/text()" 2>/dev/null || true)"
-[[ -n "$FIP_ID" ]] || {
-  log "No FLEXIBLE_IP_ID found for NIC $NIC_ID"
+log "fetch AR IP from OpenNebula input data"
+## fetch AR IP from ON input data
+FIP_IP="$(echo "$xml_content" | xpath -e "/VM/TEMPLATE/NIC/IP/text()")"
+
+log "fetched AR IP $FIP_IP"
+
+[[ -n "$FIP_IP" ]] || {
+  log "could not get AR IP details"
   exit 0
 }
 
+log "fetch FIP ID from existing FIP"
+## fetch FIP ID from existing FIP
+
+fip_resp="$(curl -sf -X GET -H "X-Auth-Token: $TOKEN" -H "Content-Type: application/json" "$API_ENDPOINT/zones/$ZONE/fips")" 
+
+log "response $fip_resp"
+
+# filtering our IP
+FIP_ID="$(echo "$fip_resp" | jq -r --arg ip "$FIP_IP" '.flexible_ips[] | select(.ip_address == $ip) | .id // empty')"
+log "Found  FIP ID for $FIP_IP => $FIP_ID"
+
+log "fetch flexible ips details" 
+#fetch flexible ips details
 info_json="$(curl -sf -H "X-Auth-Token: $TOKEN" "$API_ENDPOINT/zones/$ZONE/fips/$FIP_ID")" || {
   log "Failed to fetch Flexible IP $FIP_ID details"
   exit 1
 }
 
-FIP_IP="$(echo "$info_json" | jq -r '.flexible_ip.ip_address // .flexible_ip.address // .ip_address // empty')"
-FIP_IP="${FIP_IP%%/*}"
+log "FIP details $info_json"
+
+log  "extracting FIP MAC"
 MAC_ADDR="$(echo "$info_json" | jq -r '.flexible_ip.mac_address.mac_address // .mac_address.mac_address // empty')"
+
+log "MAC_ADDR => $MAC_ADDR"
 CURRENT_SERVER="$(echo "$info_json" | jq -r '.flexible_ip.server_id // .server_id // empty')"
 
+log "Checking if fip is connected to our server yet => $CURRENT_SERVER" 
+
+## add a mac adress if missing
 if [[ -z "$MAC_ADDR" || "$MAC_ADDR" == "null" ]]; then
   mac_resp="$(curl -sf -X POST \
       -H "X-Auth-Token: $TOKEN" \
@@ -83,33 +96,72 @@ if [[ -z "$MAC_ADDR" || "$MAC_ADDR" == "null" ]]; then
       "$API_ENDPOINT/zones/$ZONE/fips/$FIP_ID/mac")" || {
     log "Failed to generate MAC for $FIP_ID"
     exit 1
-  }
+    }
   MAC_ADDR="$(echo "$mac_resp" | jq -r '.mac_address.mac_address // empty')"
 fi
 
-if [[ "$CURRENT_SERVER" != "$SERVER_ID" ]]; then
-  payload=$(cat <<JSON
+
+log "--- FIP Attachment Logic ---"
+log "Target FIP: $FIP_ID"
+log "Target Server: $SERVER_ID"
+log "Currently Attached Server: $CURRENT_SERVER"
+
+if [[ "$CURRENT_SERVER" == "$SERVER_ID" ]]; then
+  log "INFO: Flexible IP $FIP_ID is already attached to this server ($SERVER_ID). No action needed."
+
+else
+if [[ -n "$CURRENT_SERVER" ]]; then
+    log "WARNING: FIP $FIP_ID is attached to a different server ($CURRENT_SERVER). Detaching first..."
+    
+    # !! ATTENTION !! Vérifiez cet endpoint /detach dans la documentation de l'API
+    detach_endpoint="$API_ENDPOINT/zones/$ZONE/fips/detach"
+    
+    # Payload pour le détachement
+    detach_payload=$(cat <<JSON
+{
+  "fips_ids": ["$FIP_ID"]
+}
+JSON
+)
+
+# Appel API de détachement
+    if ! curl -sf -X POST \
+        -H "X-Auth-Token: $TOKEN" \
+        -H "Content-Type: application/json" \
+        -d "$detach_payload" \
+        "$detach_endpoint" >/dev/null; then
+      log "ERROR: Detachment failed for FIP $FIP_ID from server $CURRENT_SERVER."
+      exit 1 # Erreur critique
+    else
+      log "SUCCESS: FIP $FIP_ID detached from $CURRENT_SERVER."
+    fi
+  else
+    log "INFO: FIP $FIP_ID is free and ready for attachment."
+  fi
+
+  # Étape 2: Attacher la FIP à notre serveur
+  log "ACTION: Attaching FIP $FIP_ID to server $SERVER_ID..."
+  
+  # Payload pour l'attachement
+  attach_payload=$(cat <<JSON
 {
   "fips_ids": ["$FIP_ID"],
   "server_id": "$SERVER_ID"
 }
 JSON
 )
-  log "Attaching Flexible IP $FIP_ID to server $SERVER_ID (NIC_ID=$NIC_ID)"
-  if ! curl -sf -X POST \
+if ! curl -sf -X POST \
       -H "X-Auth-Token: $TOKEN" \
       -H "Content-Type: application/json" \
-      -d "$payload" \
+      -d "$attach_payload" \
       "$API_ENDPOINT/zones/$ZONE/fips/attach" >/dev/null; then
-    log "Attachment failed for $FIP_ID"
-    exit 1
+    log "ERROR: Attachment failed for FIP $FIP_ID to server $SERVER_ID."
+    exit 1 # Erreur critique
+  else
+    log "SUCCESS: FIP $FIP_ID attached to $SERVER_ID."
   fi
-else
-  log "Flexible IP $FIP_ID already attached to target server"
+
 fi
 
-if [[ -n "$FIP_IP" ]]; then
-  write_state "$FIP_IP" "$FIP_ID" "$MAC_ADDR" "$VM_ID" "$NIC_ID"
-fi
-
+log "--- FIP Attachment Logic Complete ---"
 exit 0
