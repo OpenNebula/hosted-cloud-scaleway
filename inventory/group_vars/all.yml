@@ -32,7 +32,7 @@ validation:
   # OUTPUT: HTML document at /tmp/cloud_verification_report.html
   run_storage_benchmark: true
   storage_benchmark:
-    vnet_name: vxlan2
+    vnet_name: pubnet 
 
   # TEST CASE NAME: Network Benchmark
   # DESCRIPTION: Runs an iperf bandwidth and ping benchmark between all hypervisor hosts
@@ -53,9 +53,9 @@ validation:
   #    - Raw JSON data at /tmp/conn-matrix-raw-data.json
   run_conn_matrix: true
   conn_matrix:
-    bridge_name: br0
+    bridge_name: vmtovm
     ping_count: 10
-    vnet_name: test2 
+    vnet_name: vmtovm
 
   # TEST CASE NAME: VM instantiation
   # DESCRIPTION: Fetches a VM template and image from the OpenNebula Marketplace and instantiates it.
@@ -70,11 +70,10 @@ validation:
         MEMORY="512"
     create_vnet: true
     vnet:
-      name: 'vxlan2'
+      name: ''
       desc: 'A test network for post-deployment cloud verification'
       bridge: 'br0'
       vn_mad: 'bridge'
-      ipam_mad: 'scw-flexip'
       phydev: 'enp5s0'
       network_address: '62.210.100.79'
       network_mask: '255.255.255.255'

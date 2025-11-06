@@ -69,7 +69,7 @@ TOKEN="$(tr -d '\r\n' < "$TOKEN_FILE")"
 
 log "INFO: Fetching IP (FIP_IP) from OpenNebula data..."
 ## Fetch the AR IP from OpenNebula input data
-FIP_IP="$(echo "$xml_content" | xpath -e "/VM/TEMPLATE/NIC/IP/text()")"
+FIP_IP="$(echo "$xml_content" | xpath -e "//TEMPLATE/NIC[ATTACH]/IP/text()")"
 
 log "INFO: IP (FIP_IP) extracted from data: '$FIP_IP'"
 
