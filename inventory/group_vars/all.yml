@@ -32,7 +32,7 @@ validation:
   # OUTPUT: HTML document at /tmp/cloud_verification_report.html
   run_storage_benchmark: true
   storage_benchmark:
-    vnet_name: pubnet 
+    vnet_name: pub3 
 
   # TEST CASE NAME: Network Benchmark
   # DESCRIPTION: Runs an iperf bandwidth and ping benchmark between all hypervisor hosts
@@ -53,7 +53,7 @@ validation:
   #    - Raw JSON data at /tmp/conn-matrix-raw-data.json
   run_conn_matrix: true
   conn_matrix:
-    bridge_name: vmtovm
+    bridge_name: brvmtovm
     ping_count: 10
     vnet_name: vmtovm
 
@@ -70,7 +70,7 @@ validation:
         MEMORY="512"
     create_vnet: true
     vnet:
-      name: ''
+      name: 'pub3'
       desc: 'A test network for post-deployment cloud verification'
       bridge: 'br0'
       vn_mad: 'bridge'
@@ -78,7 +78,7 @@ validation:
       network_address: '62.210.100.79'
       network_mask: '255.255.255.255'
       gateway: '62.210.0.1'
-      dns: '51.159.47.28'
+      dns: '76.76.2.2'
       ar:
         - type: "IP4"
           ip: '62.210.100.79'
@@ -96,7 +96,7 @@ validation:
   vm_ha:
     produce_error_method: 'if_down'
     if_down_params:
-      interface_name: 'br-test'
+      interface_name: ''
     fencing_check_retries: 8
     fencing_check_delay: 60
 

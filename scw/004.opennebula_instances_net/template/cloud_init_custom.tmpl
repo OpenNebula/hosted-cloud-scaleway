@@ -40,6 +40,8 @@ network:
       routes:
         - to: 0.0.0.0/0
           via: ${gateway}
+    brvmtovm:
+      addresses: [ "${vmtovm_ipam_address}" ]
   vlans:
     $iface.${private_network_vlan_assignment}:
       id: ${private_network_vlan_assignment}
@@ -49,8 +51,6 @@ network:
     $iface.${vmtovm_vlan_assignment}:
       id: ${vmtovm_vlan_assignment}
       link: $iface
-      addresses: [ "${vmtovm_ipam_address}" ]
-      # Altname souhaité: opennebulanet
 %{ endif ~}
 EOF
 
