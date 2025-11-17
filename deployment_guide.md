@@ -232,8 +232,8 @@ Disable individual tests by toggling the corresponding `validation.run_*` flag. 
 
 ## 10. Troubleshooting & Known Issues
 
-- **Flexible IP attach/detach:** Hooks under `roles/one-driver/templates/vnm/bridge/{pre,clean}.d` keep logs in `/var/log/vnm`. Rerun `make specifics` after updating the scripts to ensure hosts sync the latest hooks.
-- **Ubuntu gateway for Flexible IPs:** When a Flexible IP resides outside the VM gateway netmask, Ubuntu may stall outbound traffic. Until upstream fixes (`OpenNebula/one-apps#284`, `OpenNebula/one#7348`) land, add a manual route (`sudo ip route add 62.210.0.1/32 dev eth0`) or persist it via `ETH0_ROUTES`.
+- **Flexible IP attach/detach:** Hooks under `roles/one-driver/templates/vnm/bridge/{pre,clean}.d` keep dedicated logs in `/var/log/vnm/scw-flexip-pre.log` (attach) and `/var/log/vnm/scw-flexip-clean.log` (detach). Review those files on the hypervisor whenever an attach/detach step hangs, then rerun `make specifics` after script updates so hosts sync the latest hooks.
+- **Ubuntu gateway for Flexible IPs:** When a Flexible IP resides outside the VM gateway netmask, Ubuntu may stall outbound traffic. Until upstream fixes (`OpenNebula/one-apps#284`, `OpenNebula/one#7348`) land, add a manual route (`sudo ip route add 62.210.0.1/32 dev eth0`). `ETH0_ROUTES` is affected by those upstream bugs, so persisting the route via context is not reliable yet.
 - **Host synchronization:** The driver role runs `onehost sync --force` for each host; investigate Ansible output if sync fails.
 - **Networking drift:** Re-apply module `004.opennebula_instances_net` or netplan templates whenever manual edits break VLAN alt-names or `brvmtovm` routes.
 - **Credentials:** Missing Flexible IP token (`scw_flexible_ip_token`) or project ID causes the driver role to abort via assertions.
@@ -273,7 +273,6 @@ To onboard additional hypervisors or iterate on the deployment:
 4. Re-run `make validation` to ensure the expanded capacity integrates cleanly.
 
 For deeper background, architecture diagrams, and screenshots, keep this guide close while executing the workflow end-to-end.
-
 
 
 

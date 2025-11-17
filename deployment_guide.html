@@ -371,7 +371,8 @@ networks.</li>
 IPAM ranges) and assumes the bare-metal NIC is <code>enp5s0</code>.</li>
 <li><code>roles/one-driver/templates/vnm/bridge/{pre,clean}.d</code>
 hooks bring Flexible IPs online/offline and log to
-<code>/var/log/vnm</code>.</li>
+<code>/var/log/vnm/scw-flexip-pre.log</code> (attach) and
+<code>/var/log/vnm/scw-flexip-clean.log</code> (detach).</li>
 <li>After provisioning, run an Ansible ping and, if needed, re-apply
 module <code>004</code> whenever netplan drift occurs.</li>
 </ul>
@@ -417,14 +418,17 @@ Issues</h2>
 <ul>
 <li><strong>Flexible IP attach/detach:</strong> Hooks under
 <code>roles/one-driver/templates/vnm/bridge/{pre,clean}.d</code> keep
-logs in <code>/var/log/vnm</code>. Rerun <code>make specifics</code>
-after updating the scripts to ensure hosts sync the latest hooks.</li>
+logs in <code>/var/log/vnm/scw-flexip-pre.log</code> (attach) and
+<code>/var/log/vnm/scw-flexip-clean.log</code> (detach). Review those
+files when a driver action stalls, then rerun <code>make specifics</code>
+after updates so hosts sync the latest hooks.</li>
 <li><strong>Ubuntu gateway for Flexible IPs:</strong> When a Flexible IP
 resides outside the VM gateway netmask, Ubuntu may stall outbound
 traffic. Until upstream fixes (<code>OpenNebula/one-apps#284</code>,
 <code>OpenNebula/one#7348</code>) land, add a manual route
-(<code>sudo ip route add 62.210.0.1/32 dev eth0</code>) or persist it
-via <code>ETH0_ROUTES</code>.</li>
+(<code>sudo ip route add 62.210.0.1/32 dev eth0</code>). The
+<code>ETH0_ROUTES</code> context knob is affected by those bugs, so it
+isn't reliable yet.</li>
 <li><strong>Host synchronization:</strong> The driver role runs
 <code>onehost sync --force</code> for each host; investigate Ansible
 output if sync fails.</li>
