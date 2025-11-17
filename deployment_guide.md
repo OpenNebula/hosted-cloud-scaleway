@@ -5,303 +5,249 @@
 
 # Deployment Guide
 
-##  Target OpenNebula Architecture
+## Table of Contents
 
-This section provides a detailed description of the target architecture based on OpenNebula, specifically deployed on Scaleway Elastic Metal instances. The architecture is designed to leverage the robust capabilities of bare-metal servers to deliver a comprehensive Infrastructure-as-a-Service (IaaS) solution.
+- [1. Scaleway Hosted Cloud Overview](#1-scaleway-hosted-cloud-overview)
+- [2. Requirements](#2-requirements)
+- [3. Repository Setup](#3-repository-setup)
+- [4. Secrets and Environment Variables](#4-secrets-and-environment-variables)
+- [5. Infrastructure Provisioning (OpenTofu Modules)](#5-infrastructure-provisioning-opentofu-modules)
+- [6. Inventory and Parameter Management](#6-inventory-and-parameter-management)
+- [7. Networking Configuration](#7-networking-configuration)
+- [8. OpenNebula Deployment Workflow](#8-opennebula-deployment-workflow)
+- [9. Validation Suite](#9-validation-suite)
+- [10. Troubleshooting & Known Issues](#10-troubleshooting--known-issues)
+- [11. CI/CD Roadmap](#11-cicd-roadmap)
+- [12. Extending the Cloud](#12-extending-the-cloud)
+
+## 1. Scaleway Hosted Cloud Overview
+
+This repository delivers the Terraform, Ansible, and driver customizations required to build an OpenNebula Hosted Cloud on **Scaleway Elastic Metal**. It extends the upstream [`one-deploy`](https://github.com/OpenNebula/one-deploy) and [`one-deploy-validation`](https://github.com/OpenNebula/one-deploy-validation) projects via git submodules and adds Scaleway-specific infrastructure modules, inventories, and Flexible IP (FIP) drivers.
 
 ### Objectives
 
-The primary objective is to deliver a full-fledged IaaS infrastructure on bare-metal servers, ensuring high performance, reliability, and scalability.
+Deploy a full-featured IaaS environment on bare-metal servers with deterministic networking, managed inventories, and reusable automation so that OpenNebula can be repeatedly installed, validated, and extended on Scaleway.
 
 ### Core Components
 
 **OpenNebula Front-end (with KVM):**
 
-- **Functionality:** Manages the entire lifecycle of virtual machines (VMs), including networking and storage. It also provides the OpenNebula frontend interface for user interaction.
-- **Additional Role:** Runs local virtual machines, effectively acting as a compute node within the infrastructure.
+- Manages the entire lifecycle of virtual machines (VMs) and doubles as a compute node.
+- Provides the OpenNebula CLI/API and Sunstone UI for operators.
 
 **Hypervisor Nodes:**
 
-- **Instance Type:** EM-A610R-NVMe instances running KVM.
-- **Networking:** Connected to a private network for secure internal communication.
-- **Public Access:** Can be attached to a Public IP to provide external access to VMs.
+- EM-A610R-NVMe instances running KVM and attached to the same private network as the frontend.
+- Can receive public connectivity via Flexible IPs (FIPs) or a Public Gateway.
+
+`roles/one-driver` ships a custom VNM bridge hook that attaches and detaches FIPs through the Scaleway APIs. Commits `967216f`, `4399aed`, and `a165376` added multi-NIC support and improved cleanup and logging under `/var/log/vnm`.
 
 ### Storage
 
-- **Local Storage:** Each node is equipped with local NVMe SSDs to ensure high-speed data access and storage performance.
-- **Capacity:** 2× NVMe 960 GB local storage per node, providing ample space for VM images and data.
+- 2× NVMe 960 GB drives per node provide high IOPS local storage for VM images and context disks.
 
 ### Networking
 
-- **Virtual Network:** Utilizes Private Networks within a Virtual Private Cloud (VPC) to ensure secure and isolated communication between instances.
-- **Public Gateway:** For high traffic scenarios, a Public Gateway is the preferred method. However, for initial deployment and Minimum Viable Product (MVP) phases, Public IPs can be directly attached to instances via Network Interface Cards (NIC).
+- Private connectivity is delivered through a VPC/VLAN mesh created by the Terraform modules under `scw/`.
+- Public access can attach directly to instances in the MVP phase or via a Public Gateway for higher-scale deployments.
+- The default netplan layout creates `br0` for public/FIP traffic, `brvmtovm` for host-to-host VXLAN, and VLAN-tagged subinterfaces for tenant networks.
 
 ![Networking Diagram](./assets/schemascw.png)
 
 ### High-Level Diagram
 
-The high-level diagram below illustrates the overall architecture, including the interaction between the OpenNebula Front-end, hypervisor nodes, and networking components.
-
 ![High-Level Diagram](./assets/schemascw-opennebula.png)
 
 ### Hardware Specification
 
-The hardware specifications for the Elastic Metal Instances – EM-A610R-NVMe are as follows:
-
 | Role | Instance Type | CPU | RAM | Disks | KVM | Count | Bandwidth |
 |------|---------------|-----|-----|-------|-----|-------|-----------|
 | Front-end + KVM | EM-A610R-NVMe | AMD Ryzen PRO 3600 (6C / 12T) | 16 GB | 2× NVMe 960 GB | Yes | 1 | Up to 1 Gbps |
-| Hypervisor(s) | EM-A610R-NVMe | AMD Ryzen PRO 3600 (6C / 12T) | 16 GB | 2× NVMe 960 GB | Yes | 1 to any | Up to 1 Gbps |
-
-This setup ensures that the infrastructure is capable of handling a wide range of workloads, providing both the computational power and storage capacity necessary for demanding applications.
+| Hypervisor(s) | EM-A610R-NVMe | AMD Ryzen PRO 3600 (6C / 12T) | 16 GB | 2× NVMe 960 GB | Yes | 1..N | Up to 1 Gbps |
 
 ### Provisioning Strategies
 
-#### Prerequisites and Capabilities
+**Prerequisites**
 
-**Prerequisites:**
-- Ubuntu 22.04 or 24.04 with Netplan version 0.105 or higher.
-- Passwordless SSH login as root from the Front-end node to the Hypervisor nodes.
-- The user performing the installation must have the ability to sudo to the root account.
-- A range of free IP addresses available on the same network connecting the Front-end and Hypervisors.
+- Ubuntu 22.04 or 24.04 with Netplan ≥ 0.105 on provisioned nodes.
+- Password-less SSH from the frontend to hypervisors.
+- Ability to sudo to root on all nodes.
+- A pool of free IP addresses on the management network.
 
-**Capabilities:**
-- Utilization of OneDeploy roles and tags.
-- Integration of the OneHook driver in Ansible.
+**Capabilities**
 
-Got it! Here’s the **final version of the `deployment_guide.md` in English**, merging your current deployment structure, `.secret.skel` variables, original repository instructions, and OpenNebula feedback adjustments:
+- Utilization of OneDeploy roles/tags and the OneHook driver.
+- Automated inventories rendered from Terraform outputs.
+- Re-runnable Ansible plays to keep hooks and packages up to date.
 
----
+## 2. Requirements
 
-# Deployment Guide for Scaleway Hosted Cloud with OpenNebula
+| Component | Version / Notes |
+|-----------|-----------------|
+| OpenTofu  | ≥ 1.5.0 (used by the `scw/*` modules) |
+| Python / pip | Needed for [hatch](https://hatch.pypa.io) and Ansible tooling |
+| Hatch     | Manages the `scaleway-default` execution environment |
+| Ansible   | Driven via the Makefile targets |
+| Scaleway Credentials | API access key, secret key, organization/project IDs, Flexible IP token |
 
-## 1. Prerequisites
+Install the local tooling:
 
-* OpenTofu >= v1.5.0
-* Scaleway API credentials
-* OpenNebula CLI tools (optional)
-* Ansible
+```bash
+pip install hatch
+make submodule-requirements     # installs Ansible collection deps
+```
 
----
-
-# Requirements
-
-1. Install `hatch`
-
-   ```shell
-   pip install hatch
-   ```
-
-## 2. Repository Setup
-
-### Clone the Repository
+## 3. Repository Setup
 
 ```bash
 git clone https://github.com/OpenNebula/hosted-cloud-scaleway.git
 cd hosted-cloud-scaleway
-```
-
-### Initialize Submodules
-
-```bash
 git submodule update --init --remote --merge
 ```
 
-### Install Ansible Collections
+The Makefile shortcuts (`deployment`, `validation`, `specifics`, `submodule-requirements`) proxy into the submodules with the Scaleway inventories pre-selected. Run commands from the repo root so relative paths (for keys, inventories, etc.) resolve correctly.
+
+## 4. Secrets and Environment Variables
+
+1. Copy the template and populate credentials:
+
+   ```bash
+   cp .secret.skel .secret
+   ```
+
+2. Edit `.secret` with the Terraform (`TF_VAR_*`) values, Scaleway credentials (`SCW_*`), AWS-compatible aliases (used by OpenTofu backends), Flexible IP token, and OpenNebula password.
+
+3. Source the file before running any `tofu` or `make` commands:
+
+   ```bash
+   source .secret
+   ```
+
+Key inputs:
+
+- `TF_VAR_customer_name`, `TF_VAR_project_name`, `TF_VAR_project_fullname` for resource naming.
+- `TF_VAR_private_subnet`, `TF_VAR_worker_count`, and netplan-related CIDRs consumed by `scw/003` and `scw/004`.
+- `SCW_ACCESS_KEY`, `SCW_SECRET_KEY`, `SCW_DEFAULT_ORGANIZATION_ID`, `SCW_DEFAULT_REGION`, `SCW_DEFAULT_ZONE`.
+- `scw_flexible_ip_*` defaults referenced by `roles/one-driver/defaults/main.yaml`.
+
+> `.secret` is ignored by git; never commit credential material.
+
+## 5. Infrastructure Provisioning (OpenTofu Modules)
+
+Modules live under `scw/` and must be executed sequentially with OpenTofu (or Terraform). Each directory contains its own state and variables.
+
+| Order | Module | Purpose |
+|-------|--------|---------|
+| 001 | `terraform_state_management` | Bootstrap state bucket/project metadata |
+| 002 | `vpc` | Create the VPC, VLANs, and subnet layout |
+| 003 | `opennebula_instances` | Provision the frontend and KVM nodes + cloud-init assets |
+| 004 | `opennebula_instances_net` | Configure netplan, VLAN tags, and Ethernet aliases |
+| 005 | `opennebula_inventories` | Render `inventory/scaleway.yml` and helper artifacts |
+
+Example run:
 
 ```bash
-make submodule-requirements
-```
-
----
-
-## 3. Initialize Secrets File
-
-Copy the skeleton secrets file and configure environment variables:
-
-```bash
-cp .secret.skel .secret
-```
-
-Edit `.secret` and populate:
-
-```bash
-export TF_VAR_customer_name='opennebula'
-export TF_VAR_project_name='opennebula-scw'
-
-export SCW_ACCESS_KEY='<Your Scaleway Access Key>'
-export SCW_SECRET_KEY='<Your Scaleway Secret Key>'
-
-export AWS_ACCESS_KEY_ID=$SCW_ACCESS_KEY
-export AWS_SECRET_ACCESS_KEY=$SCW_SECRET_KEY
-
-export SCW_DEFAULT_ORGANIZATION_ID='<Your Scaleway Organization ID>'
-export SCW_DEFAULT_REGION='fr-par'
-export SCW_DEFAULT_ZONE='fr-par-2'
-
-export TF_VAR_state_infrastructure_information='{ scw_infrastructure_project_name = "string" }'
-export TF_VAR_region=$SCW_DEFAULT_REGION
-export TF_VAR_zone=$SCW_DEFAULT_ZONE
-export TF_VAR_tfstate='any-state-name-tfstates'
-export TF_VAR_project_fullname='projectname-scw-infra'
-export TF_VAR_private_subnet="10.16.0.0/20"
-export TF_VAR_worker_count="1"
-```
-
-Source the file:
-
-```bash
-source .secret
-```
-
-> **Note:** `.secret` is in `.gitignore` and **must never be committed**.
-
----
-
-## 4. Infrastructure Deployment (Tofu Modules)
-
-The infrastructure is organized into modular directories that must be applied sequentially:
-
-### Module Execution Order:
-
-1. `001.terraform_state_management`
-2. `002.vpc`
-3. `003.opennebula_instances`
-4. `004.opennebula_inventories`
-
-### Execute Each Module:
-
-```bash
-cd <module_directory>
+cd scw/002.vpc
 tofu init
 tofu plan
 tofu apply
-cd ..
+cd ../..
 ```
 
-#### Example:
+Review `deployment_guide.md#7-networking-configuration` for the expected netplan outputs and `deployment_guide.md#6-inventory-and-parameter-management` for generated files.
 
-```bash
-cd 001.terraform_state_management/
-tofu init
-tofu apply
-cd ..
-```
+## 6. Inventory and Parameter Management
 
-Repeat for all modules in order.
----
+`inventory/scaleway.yml` is auto-generated by module `005` but can be edited for PoCs. Supplementary values live in `inventory/group_vars/all.yml`.
 
-## 5. Inventory Validation (Ansible)
+| Description | Variable(s) | Files / Templates |
+|-------------|-------------|-------------------|
+| SSH user and key path | `ansible_user`, `ansible_ssh_private_key_file` | `inventory/group_vars/all.yml` |
+| Frontend + node metadata | `frontend.hosts.*`, `node.hosts.*` | `inventory/scaleway.yml` |
+| Scaleway project/FIP identifiers | `scw_project_id`, `scw_server_id`, `scw_flexible_ip_token`, `scw_flexible_ip_zone` | `inventory/scaleway.yml`, `roles/one-driver/defaults/main.yaml` |
+| OpenNebula credentials | `one_pass`, `one_version` | `inventory/scaleway.yml`, `.secret` |
+| VNM templates | `vn.pubridge.template.*`, `vn.vxlan.template.*` | `inventory/scaleway.yml` |
+| Validation knobs | `validation.*` | `inventory/group_vars/all.yml` |
 
-** Needs module 004 to be applied ** 
-
-Test connectivity to the provisioned hosts using:
+Verify reachability once Terraform module `005` completes:
 
 ```bash
 ansible -i inventory/scaleway.yml all -m ping -b
 ```
 
-Expected result:
+Successful output resembles:
 
 ```json
 fe | SUCCESS => { "changed": false, "ping": "pong" }
 host01 | SUCCESS => { "changed": false, "ping": "pong" }
 ```
 
-Ensure:
+Ensure the SSH key path (default `scw/003.opennebula_instances/opennebula.pem`) and hostnames match what Terraform produced.
 
-* SSH key path is correctly defined in `inventory/group_vars/all.yml`:
+## 7. Networking Configuration
 
-  ```yaml
-  ansible_ssh_private_key_file: scw/003.opennebula_instances/opennebula.pem
-  ```
-* Hosts are accurately defined in `inventory/scaleway.yml`.
+- Cloud-init templates under `scw/004.opennebula_instances_net/template/` apply deterministic interfaces: `br0` (public/FIP), `brvmtovm` (VXLAN), and VLAN-tagged subinterfaces for tenant networks.
+- `cloud_init_custom.tmpl` wires in OpenTofu outputs (`base_public_ip`, `gateway`, VLAN assignments, IPAM ranges) and assumes the bare-metal NIC is `enp5s0`.
+- `roles/one-driver/templates/vnm/bridge/{pre,clean}.d` hooks bring Flexible IPs online/offline and log to `/var/log/vnm`.
+- After provisioning, run an Ansible ping and, if needed, re-apply module `004` whenever netplan drift occurs.
 
----
+## 8. OpenNebula Deployment Workflow
 
-## 6. OpenNebula Post Installation
+1. Review the submodules (`submodule-one-deploy`, `submodule-one-deploy-validation`) and local overrides (`playbooks/scaleway.yml`, `roles/one-driver`).
+2. Deploy the base OpenNebula stack (frontend, hypervisors, shared configs):
 
-If you need to SSH into the frontend server:
-
-```bash
-ssh -i scw/003.opennebula_instances/opennebula.pem ubuntu@<frontend-server-ip>
-```
-
-1. Deploy OpenNebula:
-
-   ```shell
+   ```bash
    make deployment
    ```
 
-2. Configure the deployment for the specifics of the Cloud Provider:
+3. Apply Scaleway-specific driver hooks and Flexible IP sync:
 
-   ```shell
+   ```bash
    make specifics
    ```
 
-3. Test the deployment:
+4. Run the validation suite:
 
-   ```shell
+   ```bash
    make validation
    ```
 
----
-## 7. CI/CD Pipeline (WIP)
+All targets are idempotent; rerun them whenever roles or drivers change. SSH into the frontend if manual debugging is required:
 
-A GitHub Actions CI/CD pipeline is planned to:
+```bash
+ssh -i scw/003.opennebula_instances/opennebula.pem ubuntu@<frontend-ip>
+```
 
-* Automate bare-metal provisioning.
-* Deploy OpenNebula.
-* Handle post-deployment configurations.
+## 9. Validation Suite
 
-> For now, CI/CD is a **Work In Progress (WIP)** and is not required for the minimal viable deployment.
+Defaults in `inventory/group_vars/all.yml` enable:
 
----
+- Core service health checks (`oned`, `gate`, `flow`, `fireedge`).
+- Storage benchmark VM instantiation on `pub3`.
+- Network performance tests (iperf, ping) across hypervisors.
+- Connectivity matrix across hosts and `brvmtovm`.
+- Marketplace VM deploy & smoke tests (Alpine Linux 3.21 template, optional VNET creation).
 
-## 8. User Workflow Summary
+Disable individual tests by toggling the corresponding `validation.run_*` flag. Reports land under `/tmp/cloud_verification_report.html` and directories documented in the inventory file.
 
-After completing the infrastructure deployment:
+## 10. Troubleshooting & Known Issues
 
-* Users will access OpenNebula (via Sunstone UI or CLI).
-* Manage Scaleway bare-metal servers.
-* Orchestrate VMs and networking within OpenNebula.
+- **Flexible IP attach/detach:** Hooks under `roles/one-driver/templates/vnm/bridge/{pre,clean}.d` keep logs in `/var/log/vnm`. Rerun `make specifics` after updating the scripts to ensure hosts sync the latest hooks.
+- **Ubuntu gateway for Flexible IPs:** When a Flexible IP resides outside the VM gateway netmask, Ubuntu may stall outbound traffic. Until upstream fixes (`OpenNebula/one-apps#284`, `OpenNebula/one#7348`) land, add a manual route (`sudo ip route add 62.210.0.1/32 dev eth0`) or persist it via `ETH0_ROUTES`.
+- **Host synchronization:** The driver role runs `onehost sync --force` for each host; investigate Ansible output if sync fails.
+- **Networking drift:** Re-apply module `004.opennebula_instances_net` or netplan templates whenever manual edits break VLAN alt-names or `brvmtovm` routes.
+- **Credentials:** Missing Flexible IP token (`scw_flexible_ip_token`) or project ID causes the driver role to abort via assertions.
 
----
+## 11. CI/CD Roadmap
 
-## 9. Known Limitations
+`deployment_guide.md#5-infrastructure-provisioning-opentofu-modules` and the sections above describe the manual workflow today. A future GitHub Actions pipeline (WIP) will:
 
-* CI/CD pipeline is pending.
+1. Validate sensitive inputs (tokens, CIDRs, host IPs).
+2. Run `tofu init`/`plan` and block until approved.
+3. Require manual approval before `tofu apply`.
+4. Configure Ansible, run `one-deploy-validation`, `one-deploy`, and eventually `tofu destroy`.
 
----
-
-This guide reflects the current Scaleway integration and will be updated as CI/CD pipelines and automation workflows are developed.
-
----
-
-Shall I now draft the **email/message to OpenNebula’s Engineering Team** to summarize these changes and provide them this updated guide?
-
-
-##### Optional CI/CD
-
-Given that sensitive tokens are often required to set up an environment, we can create a CI/CD pipeline where user inputs are defined as sensitive variables. This approach ensures secure handling of critical information. The CI/CD pipeline would prompt for the following sensitive inputs:
-
-- Scaleway token (scw token)
-- CIDR blocks
-- Host IP addresses
-
-The CI/CD pipeline can then validate these IP addresses against the provided CIDR blocks. This setup allows for a seamless and effortless environment configuration to deploy this module. Below are the steps involved in the CI/CD pipeline:
-
-1. **Input Validations:** Ensure all provided inputs are valid and correctly formatted.
-2. **Terraform Initialization:** Execute `terraform init` to initialize the Terraform configuration.
-3. **Terraform Plan:** Run `terraform plan` to create an execution plan (this step depends on the successful completion of `terraform init`).
-4. **Manual Terraform Apply:** Manually trigger `terraform apply` to apply the changes required to reach the desired state (this step depends on the successful completion of `terraform plan`).
-5. **Ansible Setup:** Configure Ansible for deployment (this step depends on the successful completion of `terraform apply`).
-6. **Manual Ansible Playbook Validation:** Manually trigger the Ansible playbook `one-deploy-validation` to validate the deployment (this step depends on the successful completion of `terraform apply`).
-7. **Manual Ansible Deployment:** Manually trigger the Ansible playbook `one-deploy` to execute the deployment (this step depends on the successful completion of `terraform apply`).
-8. **Manual Terraform Plan for Destroy:** Manually trigger `terraform plan -destroy` to create a plan to destroy the infrastructure (this step depends on the successful completion of `terraform apply`).
-9. **Manual Terraform Destroy:** Manually trigger `terraform destroy` to destroy the infrastructure (this step depends on the successful completion of `terraform plan -destroy`).
-
-Here is a simple Mermaid diagram illustrating the CI/CD steps:
+Sensitive inputs (Scaleway tokens, CIDRs, host IPs) should be stored as encrypted pipeline variables. A reference Mermaid diagram:
 
 ```mermaid
 graph TD;
@@ -317,8 +263,16 @@ graph TD;
     H --> I[Manual terraform destroy];
 ```
 
-This diagram provides a visual representation of the CI/CD pipeline steps and their dependencies.
+## 12. Extending the Cloud
 
+To onboard additional hypervisors or iterate on the deployment:
+
+1. Increase `TF_VAR_worker_count` (and other necessary variables) and rerun modules `003` and `004`.
+2. Regenerate inventories via module `005` and confirm SSH access.
+3. Run `make deployment` followed by `make specifics` so hooks and metadata land on the new hosts.
+4. Re-run `make validation` to ensure the expanded capacity integrates cleanly.
+
+For deeper background, architecture diagrams, and screenshots, keep this guide close while executing the workflow end-to-end.
 
 
 

@@ -1,408 +1,108 @@
-<!DOCTYPE html>
-<html>
-<head>
-<title>deployment_guide.md</title>
-<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
-
-<style>
-/* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
-/*---------------------------------------------------------------------------------------------
- *  Copyright (c) Microsoft Corporation. All rights reserved.
- *  Licensed under the MIT License. See License.txt in the project root for license information.
- *--------------------------------------------------------------------------------------------*/
-
-body {
-	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
-	font-size: var(--vscode-markdown-font-size, 14px);
-	padding: 0 26px;
-	line-height: var(--vscode-markdown-line-height, 22px);
-	word-wrap: break-word;
-}
-
-#code-csp-warning {
-	position: fixed;
-	top: 0;
-	right: 0;
-	color: white;
-	margin: 16px;
-	text-align: center;
-	font-size: 12px;
-	font-family: sans-serif;
-	background-color:#444444;
-	cursor: pointer;
-	padding: 6px;
-	box-shadow: 1px 1px 1px rgba(0,0,0,.25);
-}
-
-#code-csp-warning:hover {
-	text-decoration: none;
-	background-color:#007acc;
-	box-shadow: 2px 2px 2px rgba(0,0,0,.25);
-}
-
-body.scrollBeyondLastLine {
-	margin-bottom: calc(100vh - 22px);
-}
-
-body.showEditorSelection .code-line {
-	position: relative;
-}
-
-body.showEditorSelection .code-active-line:before,
-body.showEditorSelection .code-line:hover:before {
-	content: "";
-	display: block;
-	position: absolute;
-	top: 0;
-	left: -12px;
-	height: 100%;
-}
-
-body.showEditorSelection li.code-active-line:before,
-body.showEditorSelection li.code-line:hover:before {
-	left: -30px;
-}
-
-.vscode-light.showEditorSelection .code-active-line:before {
-	border-left: 3px solid rgba(0, 0, 0, 0.15);
-}
-
-.vscode-light.showEditorSelection .code-line:hover:before {
-	border-left: 3px solid rgba(0, 0, 0, 0.40);
-}
-
-.vscode-light.showEditorSelection .code-line .code-line:hover:before {
-	border-left: none;
-}
-
-.vscode-dark.showEditorSelection .code-active-line:before {
-	border-left: 3px solid rgba(255, 255, 255, 0.4);
-}
-
-.vscode-dark.showEditorSelection .code-line:hover:before {
-	border-left: 3px solid rgba(255, 255, 255, 0.60);
-}
-
-.vscode-dark.showEditorSelection .code-line .code-line:hover:before {
-	border-left: none;
-}
-
-.vscode-high-contrast.showEditorSelection .code-active-line:before {
-	border-left: 3px solid rgba(255, 160, 0, 0.7);
-}
-
-.vscode-high-contrast.showEditorSelection .code-line:hover:before {
-	border-left: 3px solid rgba(255, 160, 0, 1);
-}
-
-.vscode-high-contrast.showEditorSelection .code-line .code-line:hover:before {
-	border-left: none;
-}
-
-img {
-	max-width: 100%;
-	max-height: 100%;
-}
-
-a {
-	text-decoration: none;
-}
-
-a:hover {
-	text-decoration: underline;
-}
-
-a:focus,
-input:focus,
-select:focus,
-textarea:focus {
-	outline: 1px solid -webkit-focus-ring-color;
-	outline-offset: -1px;
-}
-
-hr {
-	border: 0;
-	height: 2px;
-	border-bottom: 2px solid;
-}
-
-h1 {
-	padding-bottom: 0.3em;
-	line-height: 1.2;
-	border-bottom-width: 1px;
-	border-bottom-style: solid;
-}
-
-h1, h2, h3 {
-	font-weight: normal;
-}
-
-table {
-	border-collapse: collapse;
-}
-
-table > thead > tr > th {
-	text-align: left;
-	border-bottom: 1px solid;
-}
-
-table > thead > tr > th,
-table > thead > tr > td,
-table > tbody > tr > th,
-table > tbody > tr > td {
-	padding: 5px 10px;
-}
-
-table > tbody > tr + tr > td {
-	border-top: 1px solid;
-}
-
-blockquote {
-	margin: 0 7px 0 5px;
-	padding: 0 16px 0 10px;
-	border-left-width: 5px;
-	border-left-style: solid;
-}
-
-code {
-	font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
-	font-size: 1em;
-	line-height: 1.357em;
-}
-
-body.wordWrap pre {
-	white-space: pre-wrap;
-}
-
-pre:not(.hljs),
-pre.hljs code > div {
-	padding: 16px;
-	border-radius: 3px;
-	overflow: auto;
-}
-
-pre code {
-	color: var(--vscode-editor-foreground);
-	tab-size: 4;
-}
-
-/** Theming */
-
-.vscode-light pre {
-	background-color: rgba(220, 220, 220, 0.4);
-}
-
-.vscode-dark pre {
-	background-color: rgba(10, 10, 10, 0.4);
-}
-
-.vscode-high-contrast pre {
-	background-color: rgb(0, 0, 0);
-}
-
-.vscode-high-contrast h1 {
-	border-color: rgb(0, 0, 0);
-}
-
-.vscode-light table > thead > tr > th {
-	border-color: rgba(0, 0, 0, 0.69);
-}
-
-.vscode-dark table > thead > tr > th {
-	border-color: rgba(255, 255, 255, 0.69);
-}
-
-.vscode-light h1,
-.vscode-light hr,
-.vscode-light table > tbody > tr + tr > td {
-	border-color: rgba(0, 0, 0, 0.18);
-}
-
-.vscode-dark h1,
-.vscode-dark hr,
-.vscode-dark table > tbody > tr + tr > td {
-	border-color: rgba(255, 255, 255, 0.18);
-}
-
-</style>
-
-<style>
-/* Tomorrow Theme */
-/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
-/* Original theme - https://github.com/chriskempson/tomorrow-theme */
-
-/* Tomorrow Comment */
-.hljs-comment,
-.hljs-quote {
-	color: #8e908c;
-}
-
-/* Tomorrow Red */
-.hljs-variable,
-.hljs-template-variable,
-.hljs-tag,
-.hljs-name,
-.hljs-selector-id,
-.hljs-selector-class,
-.hljs-regexp,
-.hljs-deletion {
-	color: #c82829;
-}
-
-/* Tomorrow Orange */
-.hljs-number,
-.hljs-built_in,
-.hljs-builtin-name,
-.hljs-literal,
-.hljs-type,
-.hljs-params,
-.hljs-meta,
-.hljs-link {
-	color: #f5871f;
-}
-
-/* Tomorrow Yellow */
-.hljs-attribute {
-	color: #eab700;
-}
-
-/* Tomorrow Green */
-.hljs-string,
-.hljs-symbol,
-.hljs-bullet,
-.hljs-addition {
-	color: #718c00;
-}
-
-/* Tomorrow Blue */
-.hljs-title,
-.hljs-section {
-	color: #4271ae;
-}
-
-/* Tomorrow Purple */
-.hljs-keyword,
-.hljs-selector-tag {
-	color: #8959a8;
-}
-
-.hljs {
-	display: block;
-	overflow-x: auto;
-	color: #4d4d4c;
-	padding: 0.5em;
-}
-
-.hljs-emphasis {
-	font-style: italic;
-}
-
-.hljs-strong {
-	font-weight: bold;
-}
-</style>
-
-<style>
-/*
- * Markdown PDF CSS
- */
-
- body {
-	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
-	padding: 0 12px;
-}
-
-pre {
-	background-color: #f8f8f8;
-	border: 1px solid #cccccc;
-	border-radius: 3px;
-	overflow-x: auto;
-	white-space: pre-wrap;
-	overflow-wrap: break-word;
-}
-
-pre:not(.hljs) {
-	padding: 23px;
-	line-height: 19px;
-}
-
-blockquote {
-	background: rgba(127, 127, 127, 0.1);
-	border-color: rgba(0, 122, 204, 0.5);
-}
-
-.emoji {
-	height: 1.4em;
-}
-
-code {
-	font-size: 14px;
-	line-height: 19px;
-}
-
-/* for inline code */
-:not(pre):not(.hljs) > code {
-	color: #C9AE75; /* Change the old color so it seems less like an error */
-	font-size: inherit;
-}
-
-/* Page Break : use <div class="page"/> to insert page break
--------------------------------------------------------- */
-.page {
-	page-break-after: always;
-}
-
-</style>
-
-<script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
-</head>
-<body>
-  <script>
-    mermaid.initialize({
-      startOnLoad: true,
-      theme: document.body.classList.contains('vscode-dark') || document.body.classList.contains('vscode-high-contrast')
-          ? 'dark'
-          : 'default'
-    });
-  </script>
-<p><img src="./assets/header.png" alt="scw_bg"></p>
-<p><img src="./assets/opennebula.svg" alt="opennebula_cloud_logo_white_bg"></p>
+<figure>
+<img src="./assets/header.png" alt="scw_bg" />
+<figcaption aria-hidden="true">scw_bg</figcaption>
+</figure>
+<figure>
+<img src="./assets/opennebula.svg"
+alt="opennebula_cloud_logo_white_bg" />
+<figcaption
+aria-hidden="true">opennebula_cloud_logo_white_bg</figcaption>
+</figure>
 <h1 id="deployment-guide">Deployment Guide</h1>
-<h2 id="target-opennebula-architecture">Target OpenNebula Architecture</h2>
-<p>This section provides a detailed description of the target architecture based on OpenNebula, specifically deployed on Scaleway Elastic Metal instances. The architecture is designed to leverage the robust capabilities of bare-metal servers to deliver a comprehensive Infrastructure-as-a-Service (IaaS) solution.</p>
+<h2 id="table-of-contents">Table of Contents</h2>
+<ul>
+<li><a href="#1-scaleway-hosted-cloud-overview">1. Scaleway Hosted Cloud
+Overview</a></li>
+<li><a href="#2-requirements">2. Requirements</a></li>
+<li><a href="#3-repository-setup">3. Repository Setup</a></li>
+<li><a href="#4-secrets-and-environment-variables">4. Secrets and
+Environment Variables</a></li>
+<li><a href="#5-infrastructure-provisioning-opentofu-modules">5.
+Infrastructure Provisioning (OpenTofu Modules)</a></li>
+<li><a href="#6-inventory-and-parameter-management">6. Inventory and
+Parameter Management</a></li>
+<li><a href="#7-networking-configuration">7. Networking
+Configuration</a></li>
+<li><a href="#8-opennebula-deployment-workflow">8. OpenNebula Deployment
+Workflow</a></li>
+<li><a href="#9-validation-suite">9. Validation Suite</a></li>
+<li><a href="#10-troubleshooting--known-issues">10. Troubleshooting
+&amp; Known Issues</a></li>
+<li><a href="#11-cicd-roadmap">11. CI/CD Roadmap</a></li>
+<li><a href="#12-extending-the-cloud">12. Extending the Cloud</a></li>
+</ul>
+<h2 id="scaleway-hosted-cloud-overview">1. Scaleway Hosted Cloud
+Overview</h2>
+<p>This repository delivers the Terraform, Ansible, and driver
+customizations required to build an OpenNebula Hosted Cloud on
+<strong>Scaleway Elastic Metal</strong>. It extends the upstream <a
+href="https://github.com/OpenNebula/one-deploy"><code>one-deploy</code></a>
+and <a
+href="https://github.com/OpenNebula/one-deploy-validation"><code>one-deploy-validation</code></a>
+projects via git submodules and adds Scaleway-specific infrastructure
+modules, inventories, and Flexible IP (FIP) drivers.</p>
 <h3 id="objectives">Objectives</h3>
-<p>The primary objective is to deliver a full-fledged IaaS infrastructure on bare-metal servers, ensuring high performance, reliability, and scalability.</p>
+<p>Deploy a full-featured IaaS environment on bare-metal servers with
+deterministic networking, managed inventories, and reusable automation
+so that OpenNebula can be repeatedly installed, validated, and extended
+on Scaleway.</p>
 <h3 id="core-components">Core Components</h3>
 <p><strong>OpenNebula Front-end (with KVM):</strong></p>
 <ul>
-<li><strong>Functionality:</strong> Manages the entire lifecycle of virtual machines (VMs), including networking and storage. It also provides the OpenNebula frontend interface for user interaction.</li>
-<li><strong>Additional Role:</strong> Runs local virtual machines, effectively acting as a compute node within the infrastructure.</li>
+<li>Manages the entire lifecycle of virtual machines (VMs) and doubles
+as a compute node.</li>
+<li>Provides the OpenNebula CLI/API and Sunstone UI for operators.</li>
 </ul>
 <p><strong>Hypervisor Nodes:</strong></p>
 <ul>
-<li><strong>Instance Type:</strong> EM-A610R-NVMe instances running KVM.</li>
-<li><strong>Networking:</strong> Connected to a private network for secure internal communication.</li>
-<li><strong>Public Access:</strong> Can be attached to a Public IP to provide external access to VMs.</li>
+<li>EM-A610R-NVMe instances running KVM and attached to the same private
+network as the frontend.</li>
+<li>Can receive public connectivity via Flexible IPs (FIPs) or a Public
+Gateway.</li>
 </ul>
+<p><code>roles/one-driver</code> ships a custom VNM bridge hook that
+attaches and detaches FIPs through the Scaleway APIs. Commits
+<code>967216f</code>, <code>4399aed</code>, and <code>a165376</code>
+added multi-NIC support and improved cleanup and logging under
+<code>/var/log/vnm</code>.</p>
 <h3 id="storage">Storage</h3>
 <ul>
-<li><strong>Local Storage:</strong> Each node is equipped with local NVMe SSDs to ensure high-speed data access and storage performance.</li>
-<li><strong>Capacity:</strong> 2× NVMe 960 GB local storage per node, providing ample space for VM images and data.</li>
+<li>2× NVMe 960 GB drives per node provide high IOPS local storage for
+VM images and context disks.</li>
 </ul>
 <h3 id="networking">Networking</h3>
 <ul>
-<li><strong>Virtual Network:</strong> Utilizes Private Networks within a Virtual Private Cloud (VPC) to ensure secure and isolated communication between instances.</li>
-<li><strong>Public Gateway:</strong> For high traffic scenarios, a Public Gateway is the preferred method. However, for initial deployment and Minimum Viable Product (MVP) phases, Public IPs can be directly attached to instances via Network Interface Cards (NIC).</li>
+<li>Private connectivity is delivered through a VPC/VLAN mesh created by
+the Terraform modules under <code>scw/</code>.</li>
+<li>Public access can attach directly to instances in the MVP phase or
+via a Public Gateway for higher-scale deployments.</li>
+<li>The default netplan layout creates <code>br0</code> for public/FIP
+traffic, <code>brvmtovm</code> for host-to-host VXLAN, and VLAN-tagged
+subinterfaces for tenant networks.</li>
 </ul>
-<p><img src="./assets/schemascw.png" alt="Networking Diagram"></p>
+<figure>
+<img src="./assets/schemascw.png" alt="Networking Diagram" />
+<figcaption aria-hidden="true">Networking Diagram</figcaption>
+</figure>
 <h3 id="high-level-diagram">High-Level Diagram</h3>
-<p>The high-level diagram below illustrates the overall architecture, including the interaction between the OpenNebula Front-end, hypervisor nodes, and networking components.</p>
-<p><img src="./assets/schemascw-opennebula.png" alt="High-Level Diagram"></p>
+<figure>
+<img src="./assets/schemascw-opennebula.png" alt="High-Level Diagram" />
+<figcaption aria-hidden="true">High-Level Diagram</figcaption>
+</figure>
 <h3 id="hardware-specification">Hardware Specification</h3>
-<p>The hardware specifications for the Elastic Metal Instances – EM-A610R-NVMe are as follows:</p>
 <table>
+<colgroup>
+<col style="width: 9%" />
+<col style="width: 24%" />
+<col style="width: 8%" />
+<col style="width: 8%" />
+<col style="width: 11%" />
+<col style="width: 8%" />
+<col style="width: 11%" />
+<col style="width: 18%" />
+</colgroup>
 <thead>
-<tr>
+<tr class="header">
 <th>Role</th>
 <th>Instance Type</th>
 <th>CPU</th>
@@ -414,7 +114,7 @@ code {
 </tr>
 </thead>
 <tbody>
-<tr>
+<tr class="odd">
 <td>Front-end + KVM</td>
 <td>EM-A610R-NVMe</td>
 <td>AMD Ryzen PRO 3600 (6C / 12T)</td>
@@ -424,223 +124,354 @@ code {
 <td>1</td>
 <td>Up to 1 Gbps</td>
 </tr>
-<tr>
+<tr class="even">
 <td>Hypervisor(s)</td>
 <td>EM-A610R-NVMe</td>
 <td>AMD Ryzen PRO 3600 (6C / 12T)</td>
 <td>16 GB</td>
 <td>2× NVMe 960 GB</td>
 <td>Yes</td>
-<td>1 to any</td>
+<td>1..N</td>
 <td>Up to 1 Gbps</td>
 </tr>
 </tbody>
 </table>
-<p>This setup ensures that the infrastructure is capable of handling a wide range of workloads, providing both the computational power and storage capacity necessary for demanding applications.</p>
 <h3 id="provisioning-strategies">Provisioning Strategies</h3>
-<h4 id="prerequisites-and-capabilities">Prerequisites and Capabilities</h4>
-<p><strong>Prerequisites:</strong></p>
+<p><strong>Prerequisites</strong></p>
 <ul>
-<li>Ubuntu 22.04 or 24.04 with Netplan version 0.105 or higher.</li>
-<li>Passwordless SSH login as root from the Front-end node to the Hypervisor nodes.</li>
-<li>The user performing the installation must have the ability to sudo to the root account.</li>
-<li>A range of free IP addresses available on the same network connecting the Front-end and Hypervisors.</li>
+<li>Ubuntu 22.04 or 24.04 with Netplan ≥ 0.105 on provisioned
+nodes.</li>
+<li>Password-less SSH from the frontend to hypervisors.</li>
+<li>Ability to sudo to root on all nodes.</li>
+<li>A pool of free IP addresses on the management network.</li>
 </ul>
-<p><strong>Capabilities:</strong></p>
+<p><strong>Capabilities</strong></p>
 <ul>
-<li>Utilization of OneDeploy roles and tags.</li>
-<li>Integration of the OneHook driver in Ansible.</li>
+<li>Utilization of OneDeploy roles/tags and the OneHook driver.</li>
+<li>Automated inventories rendered from Terraform outputs.</li>
+<li>Re-runnable Ansible plays to keep hooks and packages up to
+date.</li>
 </ul>
-<p>Got it! Here’s the <strong>final version of the <code>deployment_guide.md</code> in English</strong>, merging your current deployment structure, <code>.secret.skel</code> variables, original repository instructions, and OpenNebula feedback adjustments:</p>
-<hr>
-<h1 id="deployment-guide-for-scaleway-hosted-cloud-with-opennebula">Deployment Guide for Scaleway Hosted Cloud with OpenNebula</h1>
-<h2 id="1-prerequisites">1. Prerequisites</h2>
-<ul>
-<li>OpenTofu &gt;= v1.5.0</li>
-<li>Scaleway API credentials</li>
-<li>OpenNebula CLI tools (optional)</li>
-<li>Ansible</li>
-</ul>
-<hr>
-<h1 id="requirements">Requirements</h1>
-<ol>
-<li>
-<p>Install <code>hatch</code></p>
-<pre class="hljs"><code><div>pip install hatch
-</div></code></pre>
-</li>
+<h2 id="requirements">2. Requirements</h2>
+<table>
+<colgroup>
+<col style="width: 39%" />
+<col style="width: 60%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Component</th>
+<th>Version / Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>OpenTofu</td>
+<td>≥ 1.5.0 (used by the <code>scw/*</code> modules)</td>
+</tr>
+<tr class="even">
+<td>Python / pip</td>
+<td>Needed for <a href="https://hatch.pypa.io">hatch</a> and Ansible
+tooling</td>
+</tr>
+<tr class="odd">
+<td>Hatch</td>
+<td>Manages the <code>scaleway-default</code> execution environment</td>
+</tr>
+<tr class="even">
+<td>Ansible</td>
+<td>Driven via the Makefile targets</td>
+</tr>
+<tr class="odd">
+<td>Scaleway Credentials</td>
+<td>API access key, secret key, organization/project IDs, Flexible IP
+token</td>
+</tr>
+</tbody>
+</table>
+<p>Install the local tooling:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">pip</span> install hatch</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> submodule-requirements     <span class="co"># installs Ansible collection deps</span></span></code></pre></div>
+<h2 id="repository-setup">3. Repository Setup</h2>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> clone https://github.com/OpenNebula/hosted-cloud-scaleway.git</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> hosted-cloud-scaleway</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> submodule update <span class="at">--init</span> <span class="at">--remote</span> <span class="at">--merge</span></span></code></pre></div>
+<p>The Makefile shortcuts (<code>deployment</code>,
+<code>validation</code>, <code>specifics</code>,
+<code>submodule-requirements</code>) proxy into the submodules with the
+Scaleway inventories pre-selected. Run commands from the repo root so
+relative paths (for keys, inventories, etc.) resolve correctly.</p>
+<h2 id="secrets-and-environment-variables">4. Secrets and Environment
+Variables</h2>
+<ol type="1">
+<li><p>Copy the template and populate credentials:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cp</span> .secret.skel .secret</span></code></pre></div></li>
+<li><p>Edit <code>.secret</code> with the Terraform
+(<code>TF_VAR_*</code>) values, Scaleway credentials
+(<code>SCW_*</code>), AWS-compatible aliases (used by OpenTofu
+backends), Flexible IP token, and OpenNebula password.</p></li>
+<li><p>Source the file before running any <code>tofu</code> or
+<code>make</code> commands:</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="bu">source</span> .secret</span></code></pre></div></li>
 </ol>
-<h2 id="2-repository-setup">2. Repository Setup</h2>
-<h3 id="clone-the-repository">Clone the Repository</h3>
-<pre class="hljs"><code><div>git <span class="hljs-built_in">clone</span> https://github.com/OpenNebula/hosted-cloud-scaleway.git
-<span class="hljs-built_in">cd</span> hosted-cloud-scaleway
-</div></code></pre>
-<h3 id="initialize-submodules">Initialize Submodules</h3>
-<pre class="hljs"><code><div>git submodule update --init --remote --merge
-</div></code></pre>
-<h3 id="install-ansible-collections">Install Ansible Collections</h3>
-<pre class="hljs"><code><div>make submodule-requirements
-</div></code></pre>
-<hr>
-<h2 id="3-initialize-secrets-file">3. Initialize Secrets File</h2>
-<p>Copy the skeleton secrets file and configure environment variables:</p>
-<pre class="hljs"><code><div>cp .secret.skel .secret
-</div></code></pre>
-<p>Edit <code>.secret</code> and populate:</p>
-<pre class="hljs"><code><div><span class="hljs-built_in">export</span> TF_VAR_customer_name=<span class="hljs-string">'opennebula'</span>
-<span class="hljs-built_in">export</span> TF_VAR_project_name=<span class="hljs-string">'opennebula-scw'</span>
-
-<span class="hljs-built_in">export</span> SCW_ACCESS_KEY=<span class="hljs-string">'&lt;Your Scaleway Access Key&gt;'</span>
-<span class="hljs-built_in">export</span> SCW_SECRET_KEY=<span class="hljs-string">'&lt;Your Scaleway Secret Key&gt;'</span>
-
-<span class="hljs-built_in">export</span> AWS_ACCESS_KEY_ID=<span class="hljs-variable">$SCW_ACCESS_KEY</span>
-<span class="hljs-built_in">export</span> AWS_SECRET_ACCESS_KEY=<span class="hljs-variable">$SCW_SECRET_KEY</span>
-
-<span class="hljs-built_in">export</span> SCW_DEFAULT_ORGANIZATION_ID=<span class="hljs-string">'&lt;Your Scaleway Organization ID&gt;'</span>
-<span class="hljs-built_in">export</span> SCW_DEFAULT_REGION=<span class="hljs-string">'fr-par'</span>
-<span class="hljs-built_in">export</span> SCW_DEFAULT_ZONE=<span class="hljs-string">'fr-par-2'</span>
-
-<span class="hljs-built_in">export</span> TF_VAR_state_infrastructure_information=<span class="hljs-string">'{ scw_infrastructure_project_name = "string" }'</span>
-<span class="hljs-built_in">export</span> TF_VAR_region=<span class="hljs-variable">$SCW_DEFAULT_REGION</span>
-<span class="hljs-built_in">export</span> TF_VAR_zone=<span class="hljs-variable">$SCW_DEFAULT_ZONE</span>
-<span class="hljs-built_in">export</span> TF_VAR_tfstate=<span class="hljs-string">'any-state-name-tfstates'</span>
-<span class="hljs-built_in">export</span> TF_VAR_project_fullname=<span class="hljs-string">'projectname-scw-infra'</span>
-<span class="hljs-built_in">export</span> TF_VAR_private_subnet=<span class="hljs-string">"10.16.0.0/20"</span>
-<span class="hljs-built_in">export</span> TF_VAR_worker_count=<span class="hljs-string">"1"</span>
-</div></code></pre>
-<p>Source the file:</p>
-<pre class="hljs"><code><div><span class="hljs-built_in">source</span> .secret
-</div></code></pre>
-<blockquote>
-<p><strong>Note:</strong> <code>.secret</code> is in <code>.gitignore</code> and <strong>must never be committed</strong>.</p>
-</blockquote>
-<hr>
-<h2 id="4-infrastructure-deployment-tofu-modules">4. Infrastructure Deployment (Tofu Modules)</h2>
-<p>The infrastructure is organized into modular directories that must be applied sequentially:</p>
-<h3 id="module-execution-order">Module Execution Order:</h3>
-<ol>
-<li><code>001.terraform_state_management</code></li>
-<li><code>002.vpc</code></li>
-<li><code>003.opennebula_instances</code></li>
-<li><code>004.opennebula_inventories</code></li>
-</ol>
-<h3 id="execute-each-module">Execute Each Module:</h3>
-<pre class="hljs"><code><div><span class="hljs-built_in">cd</span> &lt;module_directory&gt;
-tofu init
-tofu plan
-tofu apply
-<span class="hljs-built_in">cd</span> ..
-</div></code></pre>
-<h4 id="example">Example:</h4>
-<pre class="hljs"><code><div><span class="hljs-built_in">cd</span> 001.terraform_state_management/
-tofu init
-tofu apply
-<span class="hljs-built_in">cd</span> ..
-</div></code></pre>
-<h2 id="repeat-for-all-modules-in-order">Repeat for all modules in order.</h2>
-<h2 id="5-inventory-validation-ansible">5. Inventory Validation (Ansible)</h2>
-<p>** Needs module 004 to be applied **</p>
-<p>Test connectivity to the provisioned hosts using:</p>
-<pre class="hljs"><code><div>ansible -i inventory/scaleway.yml all -m ping -b
-</div></code></pre>
-<p>Expected result:</p>
-<pre class="hljs"><code><div>fe | SUCCESS =&gt; { <span class="hljs-attr">"changed"</span>: <span class="hljs-literal">false</span>, <span class="hljs-attr">"ping"</span>: <span class="hljs-string">"pong"</span> }
-host01 | SUCCESS =&gt; { <span class="hljs-attr">"changed"</span>: <span class="hljs-literal">false</span>, <span class="hljs-attr">"ping"</span>: <span class="hljs-string">"pong"</span> }
-</div></code></pre>
-<p>Ensure:</p>
+<p>Key inputs:</p>
 <ul>
-<li>
-<p>SSH key path is correctly defined in <code>inventory/group_vars/all.yml</code>:</p>
-<pre class="hljs"><code><div><span class="hljs-attr">ansible_ssh_private_key_file:</span> <span class="hljs-string">scw/003.opennebula_instances/opennebula.pem</span>
-</div></code></pre>
-</li>
-<li>
-<p>Hosts are accurately defined in <code>inventory/scaleway.yml</code>.</p>
-</li>
-</ul>
-<hr>
-<h2 id="6-opennebula-post-installation">6. OpenNebula Post Installation</h2>
-<p>If you need to SSH into the frontend server:</p>
-<pre class="hljs"><code><div>ssh -i scw/003.opennebula_instances/opennebula.pem ubuntu@&lt;frontend-server-ip&gt;
-</div></code></pre>
-<ol>
-<li>
-<p>Deploy OpenNebula:</p>
-<pre class="hljs"><code><div>make deployment
-</div></code></pre>
-</li>
-<li>
-<p>Configure the deployment for the specifics of the Cloud Provider:</p>
-<pre class="hljs"><code><div>make specifics
-</div></code></pre>
-</li>
-<li>
-<p>Test the deployment:</p>
-<pre class="hljs"><code><div>make validation
-</div></code></pre>
-</li>
-</ol>
-<hr>
-<h2 id="7-cicd-pipeline-wip">7. CI/CD Pipeline (WIP)</h2>
-<p>A GitHub Actions CI/CD pipeline is planned to:</p>
-<ul>
-<li>Automate bare-metal provisioning.</li>
-<li>Deploy OpenNebula.</li>
-<li>Handle post-deployment configurations.</li>
+<li><code>TF_VAR_customer_name</code>, <code>TF_VAR_project_name</code>,
+<code>TF_VAR_project_fullname</code> for resource naming.</li>
+<li><code>TF_VAR_private_subnet</code>,
+<code>TF_VAR_worker_count</code>, and netplan-related CIDRs consumed by
+<code>scw/003</code> and <code>scw/004</code>.</li>
+<li><code>SCW_ACCESS_KEY</code>, <code>SCW_SECRET_KEY</code>,
+<code>SCW_DEFAULT_ORGANIZATION_ID</code>,
+<code>SCW_DEFAULT_REGION</code>, <code>SCW_DEFAULT_ZONE</code>.</li>
+<li><code>scw_flexible_ip_*</code> defaults referenced by
+<code>roles/one-driver/defaults/main.yaml</code>.</li>
 </ul>
 <blockquote>
-<p>For now, CI/CD is a <strong>Work In Progress (WIP)</strong> and is not required for the minimal viable deployment.</p>
+<p><code>.secret</code> is ignored by git; never commit credential
+material.</p>
 </blockquote>
-<hr>
-<h2 id="8-user-workflow-summary">8. User Workflow Summary</h2>
-<p>After completing the infrastructure deployment:</p>
+<h2 id="infrastructure-provisioning-opentofu-modules">5. Infrastructure
+Provisioning (OpenTofu Modules)</h2>
+<p>Modules live under <code>scw/</code> and must be executed
+sequentially with OpenTofu (or Terraform). Each directory contains its
+own state and variables.</p>
+<table>
+<colgroup>
+<col style="width: 29%" />
+<col style="width: 33%" />
+<col style="width: 37%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Order</th>
+<th>Module</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>001</td>
+<td><code>terraform_state_management</code></td>
+<td>Bootstrap state bucket/project metadata</td>
+</tr>
+<tr class="even">
+<td>002</td>
+<td><code>vpc</code></td>
+<td>Create the VPC, VLANs, and subnet layout</td>
+</tr>
+<tr class="odd">
+<td>003</td>
+<td><code>opennebula_instances</code></td>
+<td>Provision the frontend and KVM nodes + cloud-init assets</td>
+</tr>
+<tr class="even">
+<td>004</td>
+<td><code>opennebula_instances_net</code></td>
+<td>Configure netplan, VLAN tags, and Ethernet aliases</td>
+</tr>
+<tr class="odd">
+<td>005</td>
+<td><code>opennebula_inventories</code></td>
+<td>Render <code>inventory/scaleway.yml</code> and helper artifacts</td>
+</tr>
+</tbody>
+</table>
+<p>Example run:</p>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> scw/002.vpc</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="ex">tofu</span> init</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="ex">tofu</span> plan</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="ex">tofu</span> apply</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ../..</span></code></pre></div>
+<p>Review <code>deployment_guide.md#7-networking-configuration</code>
+for the expected netplan outputs and
+<code>deployment_guide.md#6-inventory-and-parameter-management</code>
+for generated files.</p>
+<h2 id="inventory-and-parameter-management">6. Inventory and Parameter
+Management</h2>
+<p><code>inventory/scaleway.yml</code> is auto-generated by module
+<code>005</code> but can be edited for PoCs. Supplementary values live
+in <code>inventory/group_vars/all.yml</code>.</p>
+<table>
+<colgroup>
+<col style="width: 28%" />
+<col style="width: 28%" />
+<col style="width: 42%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Description</th>
+<th>Variable(s)</th>
+<th>Files / Templates</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>SSH user and key path</td>
+<td><code>ansible_user</code>,
+<code>ansible_ssh_private_key_file</code></td>
+<td><code>inventory/group_vars/all.yml</code></td>
+</tr>
+<tr class="even">
+<td>Frontend + node metadata</td>
+<td><code>frontend.hosts.*</code>, <code>node.hosts.*</code></td>
+<td><code>inventory/scaleway.yml</code></td>
+</tr>
+<tr class="odd">
+<td>Scaleway project/FIP identifiers</td>
+<td><code>scw_project_id</code>, <code>scw_server_id</code>,
+<code>scw_flexible_ip_token</code>,
+<code>scw_flexible_ip_zone</code></td>
+<td><code>inventory/scaleway.yml</code>,
+<code>roles/one-driver/defaults/main.yaml</code></td>
+</tr>
+<tr class="even">
+<td>OpenNebula credentials</td>
+<td><code>one_pass</code>, <code>one_version</code></td>
+<td><code>inventory/scaleway.yml</code>, <code>.secret</code></td>
+</tr>
+<tr class="odd">
+<td>VNM templates</td>
+<td><code>vn.pubridge.template.*</code>,
+<code>vn.vxlan.template.*</code></td>
+<td><code>inventory/scaleway.yml</code></td>
+</tr>
+<tr class="even">
+<td>Validation knobs</td>
+<td><code>validation.*</code></td>
+<td><code>inventory/group_vars/all.yml</code></td>
+</tr>
+</tbody>
+</table>
+<p>Verify reachability once Terraform module <code>005</code>
+completes:</p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">ansible</span> <span class="at">-i</span> inventory/scaleway.yml all <span class="at">-m</span> ping <span class="at">-b</span></span></code></pre></div>
+<p>Successful output resembles:</p>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode json"><code class="sourceCode json"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="er">fe</span> <span class="er">|</span> <span class="er">SUCCESS</span> <span class="er">=&gt;</span> <span class="fu">{</span> <span class="dt">&quot;changed&quot;</span><span class="fu">:</span> <span class="kw">false</span><span class="fu">,</span> <span class="dt">&quot;ping&quot;</span><span class="fu">:</span> <span class="st">&quot;pong&quot;</span> <span class="fu">}</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="er">host01</span> <span class="er">|</span> <span class="er">SUCCESS</span> <span class="er">=&gt;</span> <span class="fu">{</span> <span class="dt">&quot;changed&quot;</span><span class="fu">:</span> <span class="kw">false</span><span class="fu">,</span> <span class="dt">&quot;ping&quot;</span><span class="fu">:</span> <span class="st">&quot;pong&quot;</span> <span class="fu">}</span></span></code></pre></div>
+<p>Ensure the SSH key path (default
+<code>scw/003.opennebula_instances/opennebula.pem</code>) and hostnames
+match what Terraform produced.</p>
+<h2 id="networking-configuration">7. Networking Configuration</h2>
 <ul>
-<li>Users will access OpenNebula (via Sunstone UI or CLI).</li>
-<li>Manage Scaleway bare-metal servers.</li>
-<li>Orchestrate VMs and networking within OpenNebula.</li>
+<li>Cloud-init templates under
+<code>scw/004.opennebula_instances_net/template/</code> apply
+deterministic interfaces: <code>br0</code> (public/FIP),
+<code>brvmtovm</code> (VXLAN), and VLAN-tagged subinterfaces for tenant
+networks.</li>
+<li><code>cloud_init_custom.tmpl</code> wires in OpenTofu outputs
+(<code>base_public_ip</code>, <code>gateway</code>, VLAN assignments,
+IPAM ranges) and assumes the bare-metal NIC is <code>enp5s0</code>.</li>
+<li><code>roles/one-driver/templates/vnm/bridge/{pre,clean}.d</code>
+hooks bring Flexible IPs online/offline and log to
+<code>/var/log/vnm</code>.</li>
+<li>After provisioning, run an Ansible ping and, if needed, re-apply
+module <code>004</code> whenever netplan drift occurs.</li>
 </ul>
-<hr>
-<h2 id="9-known-limitations">9. Known Limitations</h2>
-<ul>
-<li>CI/CD pipeline is pending.</li>
-</ul>
-<hr>
-<p>This guide reflects the current Scaleway integration and will be updated as CI/CD pipelines and automation workflows are developed.</p>
-<hr>
-<p>Shall I now draft the <strong>email/message to OpenNebula’s Engineering Team</strong> to summarize these changes and provide them this updated guide?</p>
-<h5 id="optional-cicd">Optional CI/CD</h5>
-<p>Given that sensitive tokens are often required to set up an environment, we can create a CI/CD pipeline where user inputs are defined as sensitive variables. This approach ensures secure handling of critical information. The CI/CD pipeline would prompt for the following sensitive inputs:</p>
-<ul>
-<li>Scaleway token (scw token)</li>
-<li>CIDR blocks</li>
-<li>Host IP addresses</li>
-</ul>
-<p>The CI/CD pipeline can then validate these IP addresses against the provided CIDR blocks. This setup allows for a seamless and effortless environment configuration to deploy this module. Below are the steps involved in the CI/CD pipeline:</p>
-<ol>
-<li><strong>Input Validations:</strong> Ensure all provided inputs are valid and correctly formatted.</li>
-<li><strong>Terraform Initialization:</strong> Execute <code>terraform init</code> to initialize the Terraform configuration.</li>
-<li><strong>Terraform Plan:</strong> Run <code>terraform plan</code> to create an execution plan (this step depends on the successful completion of <code>terraform init</code>).</li>
-<li><strong>Manual Terraform Apply:</strong> Manually trigger <code>terraform apply</code> to apply the changes required to reach the desired state (this step depends on the successful completion of <code>terraform plan</code>).</li>
-<li><strong>Ansible Setup:</strong> Configure Ansible for deployment (this step depends on the successful completion of <code>terraform apply</code>).</li>
-<li><strong>Manual Ansible Playbook Validation:</strong> Manually trigger the Ansible playbook <code>one-deploy-validation</code> to validate the deployment (this step depends on the successful completion of <code>terraform apply</code>).</li>
-<li><strong>Manual Ansible Deployment:</strong> Manually trigger the Ansible playbook <code>one-deploy</code> to execute the deployment (this step depends on the successful completion of <code>terraform apply</code>).</li>
-<li><strong>Manual Terraform Plan for Destroy:</strong> Manually trigger <code>terraform plan -destroy</code> to create a plan to destroy the infrastructure (this step depends on the successful completion of <code>terraform apply</code>).</li>
-<li><strong>Manual Terraform Destroy:</strong> Manually trigger <code>terraform destroy</code> to destroy the infrastructure (this step depends on the successful completion of <code>terraform plan -destroy</code>).</li>
+<h2 id="opennebula-deployment-workflow">8. OpenNebula Deployment
+Workflow</h2>
+<ol type="1">
+<li><p>Review the submodules (<code>submodule-one-deploy</code>,
+<code>submodule-one-deploy-validation</code>) and local overrides
+(<code>playbooks/scaleway.yml</code>,
+<code>roles/one-driver</code>).</p></li>
+<li><p>Deploy the base OpenNebula stack (frontend, hypervisors, shared
+configs):</p>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> deployment</span></code></pre></div></li>
+<li><p>Apply Scaleway-specific driver hooks and Flexible IP sync:</p>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> specifics</span></code></pre></div></li>
+<li><p>Run the validation suite:</p>
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> validation</span></code></pre></div></li>
 </ol>
-<p>Here is a simple Mermaid diagram illustrating the CI/CD steps:</p>
-<pre><code class="language-mermaid"><div class="mermaid">graph TD;
-    A[Input Validations] --> B[terraform init];
-    B --> C[terraform plan];
-    C --> D[Manual terraform apply];
-    D --> E[Ansible Setup];
-    D --> F[Manual ansible playbook one-deploy-validation];
-    D --> G[Manual ansible one-deploy];
-    G --> H[Manual terraform plan destroy];
-    F --> H;
-    E --> H;
-    H --> I[Manual terraform destroy];
-</div></code></pre>
-<p>This diagram provides a visual representation of the CI/CD pipeline steps and their dependencies.</p>
-
-</body>
-</html>
+<p>All targets are idempotent; rerun them whenever roles or drivers
+change. SSH into the frontend if manual debugging is required:</p>
+<div class="sourceCode" id="cb11"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ssh</span> <span class="at">-i</span> scw/003.opennebula_instances/opennebula.pem ubuntu@<span class="op">&lt;</span>frontend-ip<span class="op">&gt;</span></span></code></pre></div>
+<h2 id="validation-suite">9. Validation Suite</h2>
+<p>Defaults in <code>inventory/group_vars/all.yml</code> enable:</p>
+<ul>
+<li>Core service health checks (<code>oned</code>, <code>gate</code>,
+<code>flow</code>, <code>fireedge</code>).</li>
+<li>Storage benchmark VM instantiation on <code>pub3</code>.</li>
+<li>Network performance tests (iperf, ping) across hypervisors.</li>
+<li>Connectivity matrix across hosts and <code>brvmtovm</code>.</li>
+<li>Marketplace VM deploy &amp; smoke tests (Alpine Linux 3.21 template,
+optional VNET creation).</li>
+</ul>
+<p>Disable individual tests by toggling the corresponding
+<code>validation.run_*</code> flag. Reports land under
+<code>/tmp/cloud_verification_report.html</code> and directories
+documented in the inventory file.</p>
+<h2 id="troubleshooting-known-issues">10. Troubleshooting &amp; Known
+Issues</h2>
+<ul>
+<li><strong>Flexible IP attach/detach:</strong> Hooks under
+<code>roles/one-driver/templates/vnm/bridge/{pre,clean}.d</code> keep
+logs in <code>/var/log/vnm</code>. Rerun <code>make specifics</code>
+after updating the scripts to ensure hosts sync the latest hooks.</li>
+<li><strong>Ubuntu gateway for Flexible IPs:</strong> When a Flexible IP
+resides outside the VM gateway netmask, Ubuntu may stall outbound
+traffic. Until upstream fixes (<code>OpenNebula/one-apps#284</code>,
+<code>OpenNebula/one#7348</code>) land, add a manual route
+(<code>sudo ip route add 62.210.0.1/32 dev eth0</code>) or persist it
+via <code>ETH0_ROUTES</code>.</li>
+<li><strong>Host synchronization:</strong> The driver role runs
+<code>onehost sync --force</code> for each host; investigate Ansible
+output if sync fails.</li>
+<li><strong>Networking drift:</strong> Re-apply module
+<code>004.opennebula_instances_net</code> or netplan templates whenever
+manual edits break VLAN alt-names or <code>brvmtovm</code> routes.</li>
+<li><strong>Credentials:</strong> Missing Flexible IP token
+(<code>scw_flexible_ip_token</code>) or project ID causes the driver
+role to abort via assertions.</li>
+</ul>
+<h2 id="cicd-roadmap">11. CI/CD Roadmap</h2>
+<p><code>deployment_guide.md#5-infrastructure-provisioning-opentofu-modules</code>
+and the sections above describe the manual workflow today. A future
+GitHub Actions pipeline (WIP) will:</p>
+<ol type="1">
+<li>Validate sensitive inputs (tokens, CIDRs, host IPs).</li>
+<li>Run <code>tofu init</code>/<code>plan</code> and block until
+approved.</li>
+<li>Require manual approval before <code>tofu apply</code>.</li>
+<li>Configure Ansible, run <code>one-deploy-validation</code>,
+<code>one-deploy</code>, and eventually <code>tofu destroy</code>.</li>
+</ol>
+<p>Sensitive inputs (Scaleway tokens, CIDRs, host IPs) should be stored
+as encrypted pipeline variables. A reference Mermaid diagram:</p>
+<pre class="mermaid"><code>graph TD;
+    A[Input Validations] --&gt; B[terraform init];
+    B --&gt; C[terraform plan];
+    C --&gt; D[Manual terraform apply];
+    D --&gt; E[Ansible Setup];
+    D --&gt; F[Manual ansible playbook one-deploy-validation];
+    D --&gt; G[Manual ansible one-deploy];
+    G --&gt; H[Manual terraform plan destroy];
+    F --&gt; H;
+    E --&gt; H;
+    H --&gt; I[Manual terraform destroy];</code></pre>
+<h2 id="extending-the-cloud">12. Extending the Cloud</h2>
+<p>To onboard additional hypervisors or iterate on the deployment:</p>
+<ol type="1">
+<li>Increase <code>TF_VAR_worker_count</code> (and other necessary
+variables) and rerun modules <code>003</code> and <code>004</code>.</li>
+<li>Regenerate inventories via module <code>005</code> and confirm SSH
+access.</li>
+<li>Run <code>make deployment</code> followed by
+<code>make specifics</code> so hooks and metadata land on the new
+hosts.</li>
+<li>Re-run <code>make validation</code> to ensure the expanded capacity
+integrates cleanly.</li>
+</ol>
+<p>For deeper background, architecture diagrams, and screenshots, keep
+this guide close while executing the workflow end-to-end.</p>
