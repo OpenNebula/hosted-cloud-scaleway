@@ -161,6 +161,7 @@ Disable tests by setting the corresponding `validation.run_*` flag to `false`. V
 ## Troubleshooting & Known Issues
 
 - **Flexible IP attach/detach:** `roles/one-driver/templates/vnm/bridge/{pre,clean}.d` hooks log to `/var/log/vnm`. Recent fixes (`4399aed`, `a165376`) ensure bridges are cleaned when VMs mix public & private NICs. Re-run `make specifics` after updating scripts.
+- **Ubuntu gateway for Flexible IPs:** When a Flexible IP lives outside the VM gateway netmask, Ubuntu does not auto-create the route after attaching the public NIC, so outbound traffic stalls. Until upstream fixes land, connect via the VM console/KVM and add the route manually (`sudo ip route add 62.210.0.1/32 dev eth0`), or persist it via the OpenNebula context by setting `ETH0_ROUTES="62.210.0.1/32 via 0.0.0.0"`. This behavior is tracked in [OpenNebula/one-apps#284](https://github.com/OpenNebula/one-apps/issues/284) (VNET-independent `ROUTES`) and [OpenNebula/one#7348](https://github.com/OpenNebula/one/issues/7348) (`ETHx_ROUTES`).
 - **Host synchronization:** The role runs `onehost sync --force` for each registered host. Inspect Ansible output if Sync fails; hosts remain operational but may use outdated hooks.
 - **Networking drift:** Re-apply module `004.opennebula_instances_net` or netplan templates if manual edits break VLAN alt-names or `brvmtovm` routes.
 - **Credentials:** Missing Flexible IP token (`scw_flexible_ip_token`) or project ID causes the driver role to abort early via assertions.

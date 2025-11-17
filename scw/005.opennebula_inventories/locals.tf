@@ -43,4 +43,6 @@ locals {
   frontend_ip_vmtovm		= try(data.terraform_remote_state.instances_net.outputs.vmtovm_ip_web, null)
   worker_vmtovm_ips 		= try(data.terraform_remote_state.instances_net.outputs.vmtovm_ip_workers, [])
   worker_ids            	= data.terraform_remote_state.instances.outputs.opennebula_worker_server_ids
+  extra_fip_ip			= data.terraform_remote_state.instances.outputs.opennebula-extra-public-ip
+  extra_fip_mac			= data.terraform_remote_state.instances.outputs.opennebula-extra-public-ip-mac
 }

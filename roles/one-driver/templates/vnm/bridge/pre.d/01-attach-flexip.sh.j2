@@ -19,6 +19,31 @@ log() {
   printf '%s [%s] %s\n' "$timestamp" "$LOG_TAG" "$msg" >> "$LOG_FILE" 2>/dev/null || true
 }
 
+wait_for_fip_idle() {
+  local fip_id="$1"
+  local attempts="${2:-10}"
+  local sleep_secs="${3:-2}"
+  local response=""
+
+  for ((i = 1; i <= attempts; i++)); do
+    if ! response="$(curl -sf -H "X-Auth-Token: $TOKEN" "$API_ENDPOINT/zones/$ZONE/fips/$fip_id")"; then
+      break
+    fi
+
+    local state
+    state="$(echo "$response" | jq -r '.status // .flexible_ip.status // empty')"
+    if [[ "$state" != "detaching" && "$state" != "attaching" ]]; then
+      printf '%s' "$response"
+      return 0
+    fi
+
+    sleep "$sleep_secs"
+  done
+
+  printf '%s' "$response"
+  return 1
+}
+
 log "INFO: Starting driver v1.0.0-alpha1 (pre-attach)"
 
 ## Extract received data
@@ -69,7 +94,7 @@ TOKEN="$(tr -d '\r\n' < "$TOKEN_FILE")"
 
 log "INFO: Fetching IP (FIP_IP) from OpenNebula data..."
 ## Fetch the AR IP from OpenNebula input data
-FIP_IP="$(echo "$xml_content" | xpath -e "/VM/TEMPLATE/NIC/IP/text()")"
+FIP_IP="$(echo "$xml_content" | xpath -q -e "/VM/TEMPLATE/NIC/IP/text()" 2>/dev/null)"
 
 log "INFO: IP (FIP_IP) extracted from data: '$FIP_IP'"
 
@@ -140,7 +165,8 @@ log "INFO: MAC Address (MAC_ADDR) found: '$MAC_ADDR'"
 
 # Search for the server_id, either at the root or under a 'flexible_ip' key
 CURRENT_SERVER="$(echo "$info_json" | jq -r '.server_id // .flexible_ip.server_id // empty')"
-log "INFO: Currently attached server (CURRENT_SERVER): '$CURRENT_SERVER'"
+CURRENT_STATUS="$(echo "$info_json" | jq -r '.status // .flexible_ip.status // empty')"
+log "INFO: Currently attached server (CURRENT_SERVER): '${CURRENT_SERVER:-none}' (status: ${CURRENT_STATUS:-unknown})"
 
 ## Add a MAC address if missing
 if [[ -z "$MAC_ADDR" || "$MAC_ADDR" == "null" ]]; then
@@ -162,14 +188,35 @@ fi
 log "--- Starting attachment logic ---"
 log "INFO: Target FIP_ID: '$FIP_ID'"
 log "INFO: Target SERVER_ID: '$SERVER_ID'"
-log "INFO: Current Server: '$CURRENT_SERVER'"
+log "INFO: Current Server: '${CURRENT_SERVER:-none}' (status: ${CURRENT_STATUS:-unknown})"
 
-# Case 1: The IP is already attached to our server
+# If the IP is already attached to our server, ensure the status is stable
 if [[ "$CURRENT_SERVER" == "$SERVER_ID" ]]; then
-  log "INFO: FIP '$FIP_ID' is already attached to the correct server ('$SERVER_ID'). No action needed."
+  if [[ "$CURRENT_STATUS" == "attaching" || "$CURRENT_STATUS" == "detaching" || "$CURRENT_STATUS" == "updating" ]]; then
+    log "INFO: FIP '$FIP_ID' is attached to this server but in '$CURRENT_STATUS' state. Waiting for it to settle..."
+    if updated_info="$(wait_for_fip_idle "$FIP_ID" 15 2)"; then
+      info_json="$updated_info"
+      CURRENT_SERVER="$(echo "$info_json" | jq -r '.server_id // .flexible_ip.server_id // empty')"
+      CURRENT_STATUS="$(echo "$info_json" | jq -r '.status // .flexible_ip.status // empty')"
+      log "INFO: Post-wait state => server: '${CURRENT_SERVER:-none}', status: ${CURRENT_STATUS:-unknown}"
+    else
+      log "WARNING: Timed out while waiting for FIP '$FIP_ID' to stabilize. Proceeding with reattachment."
+      CURRENT_STATUS="unknown"
+    fi
+  fi
+
+  if [[ "$CURRENT_STATUS" == "attached" ]]; then
+    log "INFO: FIP '$FIP_ID' is already attached to the correct server ('$SERVER_ID'). No action needed."
+    exit 0
+  else
+    log "INFO: FIP '$FIP_ID' is not in a stable attached state. Proceeding with reattachment workflow."
+    CURRENT_SERVER=""
+  fi
+fi
 
 # Case 2 & 3: The IP is free or attached to the wrong server
-else
+if [[ "$CURRENT_SERVER" != "$SERVER_ID" ]]; then
+  detached_performed=false
   # Step 1: Detach if the IP is currently attached somewhere
   if [[ -n "$CURRENT_SERVER" ]]; then
     log "WARNING: FIP '$FIP_ID' is attached to a different server ('$CURRENT_SERVER'). Detachment required."
@@ -210,8 +257,22 @@ JSON
             ;;
     esac
 
+    detached_performed=true
   else
     log "INFO: FIP '$FIP_ID' is free and ready for attachment."
+  fi
+
+  if [[ "$detached_performed" == true ]]; then
+    log "INFO: Waiting for FIP '$FIP_ID' to leave transient state..."
+    if updated_info="$(wait_for_fip_idle "$FIP_ID" 15 2)"; then
+      info_json="$updated_info"
+      CURRENT_SERVER="$(echo "$info_json" | jq -r '.server_id // .flexible_ip.server_id // empty')"
+      current_status="$(echo "$info_json" | jq -r '.status // .flexible_ip.status // empty')"
+      log "INFO: Post-detach state => status: ${current_status:-unknown}, server: '${CURRENT_SERVER:-none}'."
+    else
+      log "WARNING: Timed out waiting for FIP '$FIP_ID' to become idle. Proceeding with attachment."
+      CURRENT_SERVER=""
+    fi
   fi
 
   # Step 2: Attach the FIP to our server
@@ -224,35 +285,51 @@ JSON
 {
   "fips_ids": ["$FIP_ID"],
   "server_id": "$SERVER_ID"
-}
+  }
 JSON
 )
   
   log "ACTION: API call (POST $attach_endpoint) for FIP '$FIP_ID'..."
-  # API call for attachment, capture response and HTTP code
-  response_with_code=$(curl -s -X POST \
-      -H "X-Auth-Token: $TOKEN" \
-      -H "Content-Type: application/json" \
-      -d "$attach_payload" \
-      -w "\nHTTP_CODE:%{http_code}" \
-      "$attach_endpoint")
+  max_attach_attempts=5
+  attempt=1
+  attach_success=false
 
-  # Extract HTTP code and response body
-  http_code=$(echo "$response_with_code" | tail -n1 | cut -d: -f2)
-  response_body=$(echo "$response_with_code" | sed '$d') # Remove the last line
+  while (( attempt <= max_attach_attempts )); do
+    response_with_code=$(curl -s -X POST \
+        -H "X-Auth-Token: $TOKEN" \
+        -H "Content-Type: application/json" \
+        -d "$attach_payload" \
+        -w "\nHTTP_CODE:%{http_code}" \
+        "$attach_endpoint")
 
-  # Handle the response
-  case "$http_code" in
-      200|201) # OK or Created
-          log "SUCCESS: FIP '$FIP_ID' attached to '$SERVER_ID'. (Code: $http_code)"
-          log "DEBUG: API response (attach): $response_body"
-          ;;
-      *) # Handle all other errors
-          log "ERROR: Attachment failed. HTTP code: $http_code."
-          log "ERROR: API response: $response_body"
-          exit 1
-          ;;
-  esac
+    http_code=$(echo "$response_with_code" | tail -n1 | cut -d: -f2)
+    response_body=$(echo "$response_with_code" | sed '$d')
+
+    case "$http_code" in
+        200|201)
+            log "SUCCESS: FIP '$FIP_ID' attached to '$SERVER_ID'. (Code: $http_code)"
+            log "DEBUG: API response (attach): $response_body"
+            attach_success=true
+            break
+            ;;
+        409)
+            log "WARNING: Attachment attempt $attempt/$max_attach_attempts returned HTTP 409 (transient state). Waiting before retry..."
+            sleep 3
+            ((attempt++))
+            continue
+            ;;
+        *)
+            log "ERROR: Attachment failed. HTTP code: $http_code."
+            log "ERROR: API response: $response_body"
+            exit 1
+            ;;
+    esac
+  done
+
+  if [[ "$attach_success" != "true" ]]; then
+    log "ERROR: Attachment failed after $max_attach_attempts attempts."
+    exit 1
+  fi
 
 fi
 

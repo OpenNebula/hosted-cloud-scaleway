@@ -19,37 +19,57 @@ log() {
   printf '%s [%s] %s\n' "$timestamp" "$LOG_TAG" "$msg" >> "$LOG_FILE" 2>/dev/null || true
 }
 
+wait_for_fip_detach_ready() {
+  local fip_id="$1"
+  local attempts="${2:-10}"
+  local sleep_secs="${3:-2}"
+  local response=""
+
+  for ((i = 1; i <= attempts; i++)); do
+    if ! response="$(curl -sf -H "X-Auth-Token: $TOKEN" "$API_ENDPOINT/zones/$ZONE/fips/$fip_id")"; then
+      break
+    fi
+
+    local state
+    state="$(echo "$response" | jq -r '.status // .flexible_ip.status // empty')"
+    if [[ "$state" != "detaching" && "$state" != "attaching" && "$state" != "updating" ]]; then
+      printf '%s' "$response"
+      return 0
+    fi
+
+    sleep "$sleep_secs"
+  done
+
+  printf '%s' "$response"
+  return 1
+}
+
 log "INFO: Starting driver v1.0.0-alpha1 (post-detach)"
 
 ## Extract received data
-xml_content=$(base64 -d)
+xml_content="$(base64 -d)"
 log "DEBUG: Raw data received from OpenNebula: $xml_content"
-
 
 ## Identify our Scaleway server by reading the ID from a file
 log "INFO: Reading Server ID from file: '$SERVER_ID_FILE'"
 
-# Check if file is readable first
 [[ -r "$SERVER_ID_FILE" ]] || {
   log "ERROR: Server ID file '$SERVER_ID_FILE' is missing or unreadable. Aborting."
   exit 0
 }
 
-# Read content after check
 SCW_ID_STRING="$(tr -d '\r\n' < "$SERVER_ID_FILE")"
-
-# Split the string using '/' as a delimiter
 ZONE="${SCW_ID_STRING%/*}"
 SERVER_ID="${SCW_ID_STRING#*/}"
 
 log "INFO: Zone identified from file: '$ZONE'"
 log "INFO: Local server ID (SERVER_ID) identified from file: '$SERVER_ID'"
 
-[[ -n "$SERVER_ID" ]]  || {
+[[ -n "$SERVER_ID" ]] || {
   log "ERROR: Failed to parse SERVER_ID from file '$SERVER_ID_FILE'. Content: '$SCW_ID_STRING'. Aborting."
   exit 0
 }
-[[ -n "$ZONE" ]]  || {
+[[ -n "$ZONE" ]] || {
   log "ERROR: Failed to parse ZONE from file '$SERVER_ID_FILE'. Content: '$SCW_ID_STRING'. Aborting."
   exit 0
 }
@@ -60,7 +80,6 @@ log "INFO: Local server ID (SERVER_ID) identified from file: '$SERVER_ID'"
 }
 
 log "INFO: Checking token content."
-## Check token
 TOKEN="$(tr -d '\r\n' < "$TOKEN_FILE")"
 [[ -n "$TOKEN" ]] || {
   log "ERROR: Token file is empty. Aborting."
@@ -68,8 +87,16 @@ TOKEN="$(tr -d '\r\n' < "$TOKEN_FILE")"
 }
 
 log "INFO: Fetching IP (FIP_IP) from OpenNebula data..."
-## Fetch the AR IP from OpenNebula input data
-FIP_IP="$(echo "$xml_content" | xpath -e "//TEMPLATE/NIC[ATTACH]/IP/text()")"
+
+FIP_IP=""
+if [[ -n "${NIC_ID:-}" && "$NIC_ID" =~ ^[0-9]+$ ]]; then
+  nic_id_expr="/VM/TEMPLATE/NIC[NIC_ID=${NIC_ID}]/IP/text()"
+  FIP_IP="$(echo "$xml_content" | xpath -q -e "$nic_id_expr" 2>/dev/null | tr -d '\r\n')"
+fi
+if [[ -z "$FIP_IP" ]]; then
+  # Fallback to the first NIC IP
+  FIP_IP="$(echo "$xml_content" | xpath -q -e "/VM/TEMPLATE/NIC/IP/text()" 2>/dev/null | head -n1 | tr -d '\r\n')"
+fi
 
 log "INFO: IP (FIP_IP) extracted from data: '$FIP_IP'"
 
@@ -82,37 +109,103 @@ log "INFO: IP (FIP_IP) extracted from data: '$FIP_IP'"
 log "INFO: Checking if IP '$FIP_IP' is a public IP..."
 IS_PUBLIC=true
 case "$FIP_IP" in
-    10.*)               # RFC1918 Class A
-        IS_PUBLIC=false
-        ;;
-    172.1[6-9].* | \
-    172.2[0-9].* | \
-    172.3[0-1].*)       # RFC1918 Class B
-        IS_PUBLIC=false
-        ;;
-    192.168.*)          # RFC1918 Class C
-        IS_PUBLIC=false
-        ;;
-    127.*)              # Loopback
-        IS_PUBLIC=false
-        ;;
-    169.254.*)          # Link-local
+    10.*|172.1[6-9].*|172.2[0-9].*|172.3[0-1].*|192.168.*|127.*|169.254.*)
         IS_PUBLIC=false
         ;;
 esac
 
 if [[ "$IS_PUBLIC" == "false" ]]; then
   log "INFO: IP '$FIP_IP' is a private, loopback, or link-local address. Skipping FIP logic."
-  exit 0 # Success, but nothing to do.
+  exit 0
 else
   log "INFO: IP '$FIP_IP' appears public. Proceeding with FIP logic."
 fi
 
 log "INFO: API call (GET fips) to list all FIPs and find ID..."
-## Fetch the FIP ID
-fip_resp="$(curl -sf -X GET -H "X-Auth-Token: $TOKEN" -H "Content-Type: application/json" "$API_ENDPOINT/zones/$ZONE/fips")" 
-
+fip_resp="$(curl -sf -X GET -H "X-Auth-Token: $TOKEN" -H "Content-Type: application/json" "$API_ENDPOINT/zones/$ZONE/fips")"
 log "DEBUG: API response (GET fips): $fip_resp"
 
-# Filter to find our IP
-FIP_ID="$(echo "$fip_resp" | jq -
+FIP_ID="$(echo "$fip_resp" | jq -r --arg ip "$FIP_IP" '.flexible_ips[] | select(.ip_address == $ip) | .id // empty')"
+log "INFO: Filtering: FIP_ID found for IP '$FIP_IP': '$FIP_ID'"
+
+[[ -n "$FIP_ID" ]] || {
+  log "INFO: FIP_ID not found for IP '$FIP_IP'. This is likely not a Flexible IP. Skipping."
+  exit 0
+}
+
+log "INFO: API call (GET fips/$FIP_ID) to fetch FIP details..."
+info_json="$(curl -sf -H "X-Auth-Token: $TOKEN" "$API_ENDPOINT/zones/$ZONE/fips/$FIP_ID")" || {
+  log "ERROR: Failed to fetch details for FIP_ID '$FIP_ID'. Aborting."
+  exit 1
+}
+log "DEBUG: API response (GET fips/$FIP_ID): $info_json"
+
+CURRENT_SERVER="$(echo "$info_json" | jq -r '.server_id // .flexible_ip.server_id // empty')"
+FIP_STATUS="$(echo "$info_json" | jq -r '.status // .flexible_ip.status // empty')"
+log "INFO: Currently attached server (CURRENT_SERVER): '${CURRENT_SERVER:-none}' (status: ${FIP_STATUS:-unknown})"
+
+if [[ -z "$CURRENT_SERVER" ]]; then
+  log "INFO: FIP '$FIP_ID' is already detached."
+  exit 0
+fi
+
+if [[ "$CURRENT_SERVER" != "$SERVER_ID" ]]; then
+  log "INFO: FIP '$FIP_ID' is attached to a different server ('$CURRENT_SERVER'). Skipping."
+  exit 0
+fi
+
+log "--- Starting detachment logic ---"
+
+if [[ "$FIP_STATUS" == "detaching" || "$FIP_STATUS" == "attaching" || "$FIP_STATUS" == "updating" ]]; then
+  log "INFO: FIP '$FIP_ID' is in transient state '$FIP_STATUS'. Waiting before forcing detach..."
+  if updated_info="$(wait_for_fip_detach_ready "$FIP_ID" 15 2)"; then
+    info_json="$updated_info"
+    CURRENT_SERVER="$(echo "$info_json" | jq -r '.server_id // .flexible_ip.server_id // empty')"
+    FIP_STATUS="$(echo "$info_json" | jq -r '.status // .flexible_ip.status // empty')"
+    log "INFO: Post-wait state => server: '${CURRENT_SERVER:-none}', status: ${FIP_STATUS:-unknown}"
+    if [[ -z "$CURRENT_SERVER" ]]; then
+      log "INFO: FIP '$FIP_ID' detached on its own while waiting. Nothing else to do."
+      exit 0
+    fi
+    if [[ "$CURRENT_SERVER" != "$SERVER_ID" ]]; then
+      log "INFO: FIP '$FIP_ID' moved to server '$CURRENT_SERVER' while waiting. Skipping."
+      exit 0
+    fi
+  else
+    log "WARNING: Timed out waiting for FIP '$FIP_ID' to become idle. Continuing with detach attempt."
+  fi
+fi
+
+detach_endpoint="$API_ENDPOINT/zones/$ZONE/fips/detach"
+detach_payload=$(cat <<JSON
+{
+  "fips_ids": ["$FIP_ID"]
+}
+JSON
+)
+
+log "ACTION: API call (POST $detach_endpoint) for FIP '$FIP_ID'..."
+response_with_code="$(curl -s -X POST \
+    -H "X-Auth-Token: $TOKEN" \
+    -H "Content-Type: application/json" \
+    -d "$detach_payload" \
+    -w "\nHTTP_CODE:%{http_code}" \
+    "$detach_endpoint")"
+
+http_code="$(echo "$response_with_code" | tail -n1 | cut -d: -f2)"
+response_body="$(echo "$response_with_code" | sed '$d')"
+
+case "$http_code" in
+    200|201|202|204)
+        log "SUCCESS: FIP '$FIP_ID' detached from '$SERVER_ID'. (Code: $http_code)"
+        log "DEBUG: API response (detach): $response_body"
+        ;;
+    *)
+        log "ERROR: Detachment failed. HTTP code: $http_code."
+        log "ERROR: API response: $response_body"
+        exit 1
+        ;;
+esac
+
+log "--- Detachment logic complete ---"
+exit 0

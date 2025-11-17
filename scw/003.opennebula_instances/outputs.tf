@@ -46,3 +46,11 @@ output "opennebula_web_flexible_ip" {
 output "opennebula_web_flexible_ip_mac" {
   value = scaleway_flexible_ip_mac_address.opennebula-web-public-ip-mac.address
 }
+
+output "opennebula-extra-public-ip" {
+  value = scaleway_flexible_ip.opennebula-extra-public-ip.ip_address
+}
+
+output "opennebula-extra-public-ip-mac" {
+  value = scaleway_flexible_ip_mac_address.opennebula-extra-public-ip-mac.address
+}

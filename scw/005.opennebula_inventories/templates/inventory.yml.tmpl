@@ -64,6 +64,7 @@ frontend:
       ansible_environment:
         ONE_AUTH: /var/lib/one/.one/one_auth
       scw_server_id: ${frontend_server_id}
+      gate_endpoint: "http://${frontend_ip_public}:5030"
 
 node:
   hosts:

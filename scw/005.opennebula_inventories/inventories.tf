@@ -24,9 +24,24 @@ resource "local_file" "inventory" {
     flexible_ip_dns          = jsonencode(var.flexible_ip_dns),
     frontend_server_id       = local.frontend_id,
     worker_server_ids        = local.worker_ids,
-    project_id               = data.scaleway_account_project.project.id
+    project_id               = data.scaleway_account_project.project.id,
+    extra_fip_ip	     = local.extra_fip_ip,
+    extra_fip_mac	     = local.extra_fip_mac
   })
 
   filename        = "${path.module}/generated/inventory.yml"
+  file_permission = "0644"
+}
+
+resource "local_file" "group_vars_all" {
+  content = templatefile("${path.module}/templates/group_vars_all.yml.tmpl", {
+    frontend_interface_pub   = local.frontend_interface,
+    extra_fip_ip             = try(local.extra_fip_ip, ""),
+    extra_fip_mac            = try(local.extra_fip_mac, ""),
+    flexible_ip_gateway      = var.flexible_ip_gateway,
+    flexible_ip_primary_dns  = try(var.flexible_ip_dns[0], ""),
+  })
+
+  filename        = "${path.module}/generated/group_vars_all.yml"
   file_permission = "0644"
 }

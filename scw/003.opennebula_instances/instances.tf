@@ -60,6 +60,11 @@ resource "scaleway_flexible_ip" "opennebula-web-public-ip" {
   zone = var.zone
   description = "opennebula-web-public-ip"
   server_id = scaleway_baremetal_server.opennebula-web.id
+  lifecycle {
+     ignore_changes = [
+        server_id
+     ]
+  }
 }
 
 resource "scaleway_flexible_ip_mac_address" "opennebula-web-public-ip-mac" {
@@ -90,6 +95,11 @@ resource "scaleway_flexible_ip" "opennebula-worker-public-ip" {
   description   = "opennebula-worker-public-ip-${count.index}"
   zone          = var.zone
   server_id     = scaleway_baremetal_server.opennebula-worker[count.index].id
+  lifecycle {
+     ignore_changes = [
+        server_id
+     ]  
+  }
 }
 
 resource "scaleway_flexible_ip_mac_address" "opennebula-worker-public-ip-mac" {
