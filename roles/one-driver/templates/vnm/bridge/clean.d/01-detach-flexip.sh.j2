@@ -87,39 +87,35 @@ TOKEN="$(tr -d '\r\n' < "$TOKEN_FILE")"
 }
 
 log "INFO: Fetching IP (FIP_IP) from OpenNebula data..."
+nic_ips_raw="$(echo "$xml_content" | xpath -q -e "/VM/TEMPLATE/NIC/IP/text()" 2>/dev/null || true)"
+nic_ips_raw="${nic_ips_raw//$'\r'/}"
 
-FIP_IP=""
-if [[ -n "${NIC_ID:-}" && "$NIC_ID" =~ ^[0-9]+$ ]]; then
-  nic_id_expr="/VM/TEMPLATE/NIC[NIC_ID=${NIC_ID}]/IP/text()"
-  FIP_IP="$(echo "$xml_content" | xpath -q -e "$nic_id_expr" 2>/dev/null | tr -d '\r\n')"
-fi
-if [[ -z "$FIP_IP" ]]; then
-  # Fallback to the first NIC IP
-  FIP_IP="$(echo "$xml_content" | xpath -q -e "/VM/TEMPLATE/NIC/IP/text()" 2>/dev/null | head -n1 | tr -d '\r\n')"
-fi
-
-log "INFO: IP (FIP_IP) extracted from data: '$FIP_IP'"
-
-[[ -n "$FIP_IP" ]] || {
-  log "ERROR: Could not extract IP (FIP_IP) from XML data. Aborting."
+[[ -n "$nic_ips_raw" ]] || {
+  log "ERROR: Could not extract any NIC IP from XML data. Aborting."
   exit 0
 }
 
-## Public IP Check
-log "INFO: Checking if IP '$FIP_IP' is a public IP..."
-IS_PUBLIC=true
-case "$FIP_IP" in
-    10.*|172.1[6-9].*|172.2[0-9].*|172.3[0-1].*|192.168.*|127.*|169.254.*)
-        IS_PUBLIC=false
-        ;;
-esac
+FIP_IP=""
+while IFS= read -r ip_line; do
+  candidate="$(echo "$ip_line" | tr -d '[:space:]')"
+  [[ -z "$candidate" ]] && continue
+  case "$candidate" in
+      10.*|172.1[6-9].*|172.2[0-9].*|172.3[0-1].*|192.168.*|127.*|169.254.*)
+          continue
+          ;;
+      *)
+          FIP_IP="$candidate"
+          break
+          ;;
+  esac
+done <<< "$nic_ips_raw"
 
-if [[ "$IS_PUBLIC" == "false" ]]; then
-  log "INFO: IP '$FIP_IP' is a private, loopback, or link-local address. Skipping FIP logic."
+if [[ -z "$FIP_IP" ]]; then
+  log "INFO: No public IP found among NIC entries. Skipping FIP logic."
   exit 0
-else
-  log "INFO: IP '$FIP_IP' appears public. Proceeding with FIP logic."
 fi
+
+log "INFO: Public IP (FIP_IP) selected from data: '$FIP_IP'"
 
 log "INFO: API call (GET fips) to list all FIPs and find ID..."
 fip_resp="$(curl -sf -X GET -H "X-Auth-Token: $TOKEN" -H "Content-Type: application/json" "$API_ENDPOINT/zones/$ZONE/fips")"

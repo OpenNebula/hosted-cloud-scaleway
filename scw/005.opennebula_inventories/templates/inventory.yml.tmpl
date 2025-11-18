@@ -35,7 +35,7 @@ all:
             IP: ${split("/", frontend_ip_flexible)[0]}
             SIZE: 1
             MAC: "${frontend_ip_flexible_mac}"
-          DNS: 1.1.1.1
+          DNS: ${flexible_ip_dns} 
           NETWORK_MASK: 255.255.255.255
           GATEWAY: ${flexible_ip_gateway}
           FILTER_IP_SPOOFING: 'NO'

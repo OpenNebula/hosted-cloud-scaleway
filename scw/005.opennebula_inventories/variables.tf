@@ -39,7 +39,7 @@ variable "scw_secret_key" {
 variable "flexible_ip_dns" {
   type        = list(string)
   description = "DNS resolvers advertised by the Scaleway Flexible IP driver."
-  default     = ["1.1.1.1"]
+  default     = ["76.76.2.2"]
 }
 
 variable "flexible_ip_permission_sets" {
