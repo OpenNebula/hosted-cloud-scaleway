@@ -161,7 +161,21 @@ Disable tests by setting the corresponding `validation.run_*` flag to `false`. V
 ## Troubleshooting & Known Issues
 
 - **Flexible IP attach/detach:** `roles/one-driver/templates/vnm/bridge/{pre,clean}.d` hooks log verbosely to `/var/log/vnm/scw-flexip-pre.log` (attach) and `/var/log/vnm/scw-flexip-clean.log` (detach). Inspect those files when a driver action stalls—the logs capture every API call/response. Recent fixes (`4399aed`, `a165376`) ensure bridges are cleaned when VMs mix public & private NICs. Re-run `make specifics` after updating scripts so hosts download the latest hooks.
-- **Ubuntu gateway for Flexible IPs:** When a Flexible IP lives outside the VM gateway netmask, Ubuntu does not auto-create the route after attaching the public NIC, so outbound traffic stalls. Until upstream fixes land, connect via the VM console/KVM and add the route manually (`sudo ip route add 62.210.0.1/32 dev eth0`). The `ETH0_ROUTES` context setting remains broken by [OpenNebula/one-apps#284](https://github.com/OpenNebula/one-apps/issues/284) (VNET-independent `ROUTES`) and [OpenNebula/one#7348](https://github.com/OpenNebula/one/issues/7348) (`ETHx_ROUTES`), so the manual command is the only reliable workaround today.
+- **Ubuntu gateway for Flexible IPs:** When a Flexible IP lives outside the VM gateway netmask, Ubuntu does not auto-create the route after attaching the public NIC, so outbound traffic stalls. To persist the fix, drop a small netplan file and apply it (the alternative `ip route add` command disappears after reboot):
+
+  ```yaml
+  # /etc/netplan/99-flexip-route.yaml
+  network:
+    version: 2
+    renderer: networkd
+    ethernets:
+      eth0:
+        routes:
+          - to: "62.210.0.1/32"
+            via: 0.0.0.0
+  ```
+
+  Apply it with `sudo netplan apply`. The `ETH0_ROUTES` context setting remains broken by [OpenNebula/one-apps#284](https://github.com/OpenNebula/one-apps/issues/284) (VNET-independent `ROUTES`) and [OpenNebula/one#7348](https://github.com/OpenNebula/one/issues/7348) (`ETHx_ROUTES`), so codifying the route via netplan is the only reliable workaround today.
 - **Host synchronization:** The role runs `onehost sync --force` for each registered host. Inspect Ansible output if Sync fails; hosts remain operational but may use outdated hooks.
 - **Networking drift:** Re-apply module `004.opennebula_instances_net` or netplan templates if manual edits break VLAN alt-names or `brvmtovm` routes.
 - **Credentials:** Missing Flexible IP token (`scw_flexible_ip_token`) or project ID causes the driver role to abort early via assertions.

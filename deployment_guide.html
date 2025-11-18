@@ -371,8 +371,7 @@ networks.</li>
 IPAM ranges) and assumes the bare-metal NIC is <code>enp5s0</code>.</li>
 <li><code>roles/one-driver/templates/vnm/bridge/{pre,clean}.d</code>
 hooks bring Flexible IPs online/offline and log to
-<code>/var/log/vnm/scw-flexip-pre.log</code> (attach) and
-<code>/var/log/vnm/scw-flexip-clean.log</code> (detach).</li>
+<code>/var/log/vnm</code>.</li>
 <li>After provisioning, run an Ansible ping and, if needed, re-apply
 module <code>004</code> whenever netplan drift occurs.</li>
 </ul>
@@ -416,28 +415,42 @@ documented in the inventory file.</p>
 <h2 id="troubleshooting-known-issues">10. Troubleshooting &amp; Known
 Issues</h2>
 <ul>
-<li><strong>Flexible IP attach/detach:</strong> Hooks under
+<li><p><strong>Flexible IP attach/detach:</strong> Hooks under
 <code>roles/one-driver/templates/vnm/bridge/{pre,clean}.d</code> keep
-logs in <code>/var/log/vnm/scw-flexip-pre.log</code> (attach) and
-<code>/var/log/vnm/scw-flexip-clean.log</code> (detach). Review those
-files when a driver action stalls, then rerun <code>make specifics</code>
-after updates so hosts sync the latest hooks.</li>
-<li><strong>Ubuntu gateway for Flexible IPs:</strong> When a Flexible IP
-resides outside the VM gateway netmask, Ubuntu may stall outbound
-traffic. Until upstream fixes (<code>OpenNebula/one-apps#284</code>,
-<code>OpenNebula/one#7348</code>) land, add a manual route
-(<code>sudo ip route add 62.210.0.1/32 dev eth0</code>). The
-<code>ETH0_ROUTES</code> context knob is affected by those bugs, so it
-isn't reliable yet.</li>
-<li><strong>Host synchronization:</strong> The driver role runs
+dedicated logs in <code>/var/log/vnm/scw-flexip-pre.log</code> (attach)
+and <code>/var/log/vnm/scw-flexip-clean.log</code> (detach). Review
+those files on the hypervisor whenever an attach/detach step hangs, then
+rerun <code>make specifics</code> after script updates so hosts sync the
+latest hooks.</p></li>
+<li><p><strong>Ubuntu gateway for Flexible IPs:</strong> When a Flexible
+IP resides outside the VM gateway netmask, Ubuntu may stall outbound
+traffic. Persist the workaround with a dedicated netplan file (the bare
+<code>ip route add</code> command disappears after reboot):</p>
+<div class="sourceCode" id="cb12"><pre
+class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># /etc/netplan/99-flexip-route.yaml</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="fu">network</span><span class="kw">:</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">version</span><span class="kw">:</span><span class="at"> </span><span class="dv">2</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">renderer</span><span class="kw">:</span><span class="at"> networkd</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">ethernets</span><span class="kw">:</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">eth0</span><span class="kw">:</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">routes</span><span class="kw">:</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">-</span><span class="at"> </span><span class="fu">to</span><span class="kw">:</span><span class="at"> </span><span class="st">&quot;62.210.0.1/32&quot;</span></span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">via</span><span class="kw">:</span><span class="at"> </span><span class="fl">0.0.0.0</span></span></code></pre></div>
+<p>Run <code>sudo netplan apply</code> to activate the route.
+<code>ETH0_ROUTES</code> is affected by upstream bugs
+(<code>OpenNebula/one-apps#284</code>,
+<code>OpenNebula/one#7348</code>), so codifying the route via netplan is
+the only reliable approach today.</p></li>
+<li><p><strong>Host synchronization:</strong> The driver role runs
 <code>onehost sync --force</code> for each host; investigate Ansible
-output if sync fails.</li>
-<li><strong>Networking drift:</strong> Re-apply module
+output if sync fails.</p></li>
+<li><p><strong>Networking drift:</strong> Re-apply module
 <code>004.opennebula_instances_net</code> or netplan templates whenever
-manual edits break VLAN alt-names or <code>brvmtovm</code> routes.</li>
-<li><strong>Credentials:</strong> Missing Flexible IP token
+manual edits break VLAN alt-names or <code>brvmtovm</code>
+routes.</p></li>
+<li><p><strong>Credentials:</strong> Missing Flexible IP token
 (<code>scw_flexible_ip_token</code>) or project ID causes the driver
-role to abort via assertions.</li>
+role to abort via assertions.</p></li>
 </ul>
 <h2 id="cicd-roadmap">11. CI/CD Roadmap</h2>
 <p><code>deployment_guide.md#5-infrastructure-provisioning-opentofu-modules</code>

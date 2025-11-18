@@ -233,7 +233,21 @@ Disable individual tests by toggling the corresponding `validation.run_*` flag. 
 ## 10. Troubleshooting & Known Issues
 
 - **Flexible IP attach/detach:** Hooks under `roles/one-driver/templates/vnm/bridge/{pre,clean}.d` keep dedicated logs in `/var/log/vnm/scw-flexip-pre.log` (attach) and `/var/log/vnm/scw-flexip-clean.log` (detach). Review those files on the hypervisor whenever an attach/detach step hangs, then rerun `make specifics` after script updates so hosts sync the latest hooks.
-- **Ubuntu gateway for Flexible IPs:** When a Flexible IP resides outside the VM gateway netmask, Ubuntu may stall outbound traffic. Until upstream fixes (`OpenNebula/one-apps#284`, `OpenNebula/one#7348`) land, add a manual route (`sudo ip route add 62.210.0.1/32 dev eth0`). `ETH0_ROUTES` is affected by those upstream bugs, so persisting the route via context is not reliable yet.
+- **Ubuntu gateway for Flexible IPs:** When a Flexible IP resides outside the VM gateway netmask, Ubuntu may stall outbound traffic. Persist the workaround with a dedicated netplan file (the bare `ip route add` command disappears after reboot):
+
+  ```yaml
+  # /etc/netplan/99-flexip-route.yaml
+  network:
+    version: 2
+    renderer: networkd
+    ethernets:
+      eth0:
+        routes:
+          - to: "62.210.0.1/32"
+            via: 0.0.0.0
+  ```
+
+  Run `sudo netplan apply` to activate the route. `ETH0_ROUTES` is affected by upstream bugs (`OpenNebula/one-apps#284`, `OpenNebula/one#7348`), so codifying the route via netplan is the only reliable approach today.
 - **Host synchronization:** The driver role runs `onehost sync --force` for each host; investigate Ansible output if sync fails.
 - **Networking drift:** Re-apply module `004.opennebula_instances_net` or netplan templates whenever manual edits break VLAN alt-names or `brvmtovm` routes.
 - **Credentials:** Missing Flexible IP token (`scw_flexible_ip_token`) or project ID causes the driver role to abort via assertions.
@@ -273,6 +287,5 @@ To onboard additional hypervisors or iterate on the deployment:
 4. Re-run `make validation` to ensure the expanded capacity integrates cleanly.
 
 For deeper background, architecture diagrams, and screenshots, keep this guide close while executing the workflow end-to-end.
-
 
 
