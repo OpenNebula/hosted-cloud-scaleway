@@ -88,7 +88,11 @@ Deploy a full-featured IaaS environment on bare-metal servers with deterministic
 | Python / pip | Needed for [hatch](https://hatch.pypa.io) and Ansible tooling |
 | Hatch     | Manages the `scaleway-default` execution environment |
 | Ansible   | Driven via the Makefile targets |
-| Scaleway Credentials | API access key, secret key, organization/project IDs, Flexible IP token |
+| Scaleway Credentials | API access key, secret key, organization/project IDs |
+
+Manual prerequisites (before automation):
+
+- Create a Scaleway project (Console: Account > Projects) and an API key with `ElasticMetalFullAccess` + `IPAMFullAccess` (Console: IAM > API Keys). No bare-metal server needs to be pre-created—the Terraform modules provision the Elastic Metal servers and also create the Flexible IP IAM application/token automatically in module `005`.
 
 Install the local tooling:
 
@@ -115,7 +119,7 @@ The Makefile shortcuts (`deployment`, `validation`, `specifics`, `submodule-requ
    cp .secret.skel .secret
    ```
 
-2. Edit `.secret` with the Terraform (`TF_VAR_*`) values, Scaleway credentials (`SCW_*`), AWS-compatible aliases (used by OpenTofu backends), Flexible IP token, and OpenNebula password.
+2. Edit `.secret` with the Terraform (`TF_VAR_*`) values, Scaleway credentials (`SCW_*`), AWS-compatible aliases (used by OpenTofu backends), and OpenNebula password. Create an **Admin-level** API key in the Scaleway Console at **IAM > API Keys** (covers the needed ElasticMetal + IPAM permissions). The Flexible IP IAM application/token is created automatically by module `005` and injected into the generated inventory; you do **not** need to pre-create or store this token. `SCW_DEFAULT_PROJECT_ID` is optional (not used by the modules).
 
 3. Source the file before running any `tofu` or `make` commands:
 
@@ -126,9 +130,11 @@ The Makefile shortcuts (`deployment`, `validation`, `specifics`, `submodule-requ
 Key inputs:
 
 - `TF_VAR_customer_name`, `TF_VAR_project_name`, `TF_VAR_project_fullname` for resource naming.
-- `TF_VAR_private_subnet`, `TF_VAR_worker_count`, and netplan-related CIDRs consumed by `scw/003` and `scw/004`.
-- `SCW_ACCESS_KEY`, `SCW_SECRET_KEY`, `SCW_DEFAULT_ORGANIZATION_ID`, `SCW_DEFAULT_REGION`, `SCW_DEFAULT_ZONE`.
-- `scw_flexible_ip_*` defaults referenced by `roles/one-driver/defaults/main.yaml`.
+- `TF_VAR_state_infrastructure_information` — object with `scw_infrastructure_project_name` (used to name the dedicated state project); `TF_VAR_tfstate` — bucket prefix for remote state. These two must be set or `tofu plan` will prompt for them.
+- `TF_VAR_private_subnet`, `TF_VAR_vmtovm_subnet`, `TF_VAR_worker_count`, and netplan-related CIDRs consumed by `scw/003` and `scw/004`.
+- `SCW_ACCESS_KEY`, `SCW_SECRET_KEY`, `SCW_DEFAULT_ORGANIZATION_ID`, `SCW_DEFAULT_REGION`, `SCW_DEFAULT_ZONE`. `SCW_DEFAULT_PROJECT_ID` is optional (not used by the modules).
+- `TF_VAR_scw_secret_key` (often set to `$SCW_SECRET_KEY`) and AWS-compatible aliases (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`) for the backend.
+- `scw_flexible_ip_*` defaults referenced by `roles/one-driver/defaults/main.yaml` (populated by module `005`).
 
 > `.secret` is ignored by git; never commit credential material.
 
@@ -144,15 +150,20 @@ Modules live under `scw/` and must be executed sequentially with OpenTofu (or Te
 | 004 | `opennebula_instances_net` | Configure netplan, VLAN tags, and Ethernet aliases |
 | 005 | `opennebula_inventories` | Render `inventory/scaleway.yml` and helper artifacts |
 
-Example run:
+Run each module in order after `source .secret` (keep them separate to ease debugging):
 
 ```bash
-cd scw/002.vpc
-tofu init
-tofu plan
-tofu apply
-cd ../..
+cd scw/001.terraform_state_management && tofu init && tofu plan -input=false && tofu apply && cd ../..
+cd scw/002.vpc                      && tofu init && tofu plan -input=false && tofu apply && cd ../..
+cd scw/003.opennebula_instances     && tofu init && tofu plan -input=false && tofu apply && cd ../..
+cd scw/004.opennebula_instances_net && tofu init && tofu plan -input=false && tofu apply && cd ../..
+cd scw/005.opennebula_inventories   && tofu init && tofu plan -input=false && tofu apply && cd ../..
 ```
+
+Notes:
+
+- If `tofu plan` prompts for `state_infrastructure_information` or `tfstate`, the environment variables `TF_VAR_state_infrastructure_information` and `TF_VAR_tfstate` were not exported (fill them in `.secret` and re-source it). Using `-input=false` surfaces the missing names immediately.
+- No bare-metal resources are required beforehand—the modules above create the Elastic Metal servers, networking, inventories, and the Flexible IP IAM application/token for you. The generated token is written into `inventory/scaleway.yml` as `scw_flexible_ip_token`.
 
 Review `deployment_guide.md#7-networking-configuration` for the expected netplan outputs and `deployment_guide.md#6-inventory-and-parameter-management` for generated files.
 
@@ -287,5 +298,3 @@ To onboard additional hypervisors or iterate on the deployment:
 4. Re-run `make validation` to ensure the expanded capacity integrates cleanly.
 
 For deeper background, architecture diagrams, and screenshots, keep this guide close while executing the workflow end-to-end.
-
-

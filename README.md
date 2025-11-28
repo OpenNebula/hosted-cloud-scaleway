@@ -35,7 +35,11 @@ Use the in-repo [deployment guide](./deployment_guide.md) for a narrative, end-t
 | Python / pip | Needed for [hatch](https://hatch.pypa.io) and Ansible tooling |
 | Hatch     | Used to manage the `scaleway-default` execution environment |
 | Ansible   | Driven by the `Makefile` targets |
-| Scaleway Credentials | API access key, secret key, organization/project IDs, Flexible IP token |
+| Scaleway Credentials | API access key, secret key, organization/project IDs |
+
+Manual prerequisites (before automation):
+
+- Create a Scaleway project (Console: Account > Projects) and an API key with `ElasticMetalFullAccess` + `IPAMFullAccess` (Console: IAM > API Keys). No bare-metal server needs to be pre-created—the Terraform modules provision the Elastic Metal servers and also create the Flexible IP IAM application/token automatically in module `005`.
 
 Install the local tooling:
 
@@ -66,9 +70,37 @@ source .secret
 
 Key variables:
 
-- `TF_VAR_customer_name`, `TF_VAR_project_name`, `TF_VAR_project_fullname` — naming for resources/state.
-- `SCW_ACCESS_KEY` / `SCW_SECRET_KEY` plus `SCW_DEFAULT_ORGANIZATION_ID`, `SCW_DEFAULT_REGION`, and `SCW_DEFAULT_ZONE`.
-- Flexible IP defaults (`TF_VAR_private_subnet`, `TF_VAR_worker_count`) consumed by the Terraform modules and driver defaults (`scw_flexible_ip_*`).
+- `TF_VAR_customer_name`, `TF_VAR_project_name`, `TF_VAR_project_fullname` — naming for resources/state (keep names as-is, only change values).
+- `TF_VAR_state_infrastructure_information` — object with `scw_infrastructure_project_name` (used to name the dedicated state project); `TF_VAR_tfstate` — bucket prefix for remote state. These two must be set or `tofu plan` will prompt.
+- `SCW_ACCESS_KEY` / `SCW_SECRET_KEY` plus `SCW_DEFAULT_ORGANIZATION_ID`, `SCW_DEFAULT_REGION`, and `SCW_DEFAULT_ZONE`. `SCW_DEFAULT_PROJECT_ID` is optional (not used by the modules).
+- `TF_VAR_scw_secret_key` — required input to module `005`, keep the name unchanged and set it to `$SCW_SECRET_KEY`.
+- Network inputs: `TF_VAR_private_subnet` (management subnet) and `TF_VAR_vmtovm_subnet` (VXLAN mesh subnet), plus `TF_VAR_worker_count` (number of hypervisors).
+- AWS-compatible aliases (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`) used by the state backend (keep the names as-is).
+- The Flexible IP IAM application, policy, and token are created for you in module `005` and injected into `inventory/scaleway.yml` (`scw_flexible_ip_token`). You do **not** need to pre-create or store this token in `.secret`.
+
+Example fill (replace with your IDs, zones, and secrets):
+
+```bash
+export TF_VAR_customer_name='opennebula'
+export TF_VAR_project_name='scw'
+export SCW_ACCESS_KEY='<scw-access-key>'
+export SCW_SECRET_KEY='<scw-secret-key>'
+export TF_VAR_scw_secret_key=$SCW_SECRET_KEY   # required; name must stay as-is
+export AWS_ACCESS_KEY_ID=$SCW_ACCESS_KEY
+export AWS_SECRET_ACCESS_KEY=$SCW_SECRET_KEY
+export SCW_DEFAULT_ORGANIZATION_ID='<org-id>'
+export SCW_DEFAULT_REGION='fr-par'
+export SCW_DEFAULT_ZONE='fr-par-2'
+export TF_VAR_state_infrastructure_information='{ scw_infrastructure_project_name = "infra"}'
+export TF_VAR_region=$SCW_DEFAULT_REGION
+export TF_VAR_zone=$SCW_DEFAULT_ZONE
+export TF_VAR_tfstate='opennebula-scw-infra-tfstates'
+export TF_VAR_project_fullname='opennebula-scw-infra'
+export TF_VAR_private_subnet="10.16.0.0/20"
+export TF_VAR_vmtovm_subnet="172.16.24.0/22"
+export TF_VAR_worker_count="1"
+export TF_VAR_one_password='<oneadmin-password>'
+```
 
 > `.secret` stays ignored; never commit credential material.
 
@@ -84,14 +116,21 @@ Modules under `scw/` are executed sequentially (OpenTofu CLI):
 | 004 | `opennebula_instances_net` | Configure networking (netplan, bridges, VLAN tags) |
 | 005 | `opennebula_inventories` | Render `inventory/scaleway.yml` from module outputs |
 
-Example run:
+Example run (after `source .secret`):
 
 ```bash
 cd scw/002.vpc
 tofu init
-tofu plan
+tofu plan -input=false   # surfaces any missing TF_VAR_* instead of prompting
 tofu apply
 cd ../..
+
+# run each module in order (no loops to keep debugging simple)
+cd scw/001.terraform_state_management && tofu init && tofu plan -input=false && tofu apply && cd ../..
+cd scw/002.vpc                      && tofu init && tofu plan -input=false && tofu apply && cd ../..
+cd scw/003.opennebula_instances     && tofu init && tofu plan -input=false && tofu apply && cd ../..
+cd scw/004.opennebula_instances_net && tofu init && tofu plan -input=false && tofu apply && cd ../..
+cd scw/005.opennebula_inventories   && tofu init && tofu plan -input=false && tofu apply && cd ../..
 ```
 
 Consult `deployment_guide.md#4-infrastructure-deployment-tofu-modules` for module-specific inputs, expected outputs, and screenshots.
