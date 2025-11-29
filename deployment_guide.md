@@ -92,7 +92,7 @@ Deploy a full-featured IaaS environment on bare-metal servers with deterministic
 
 Manual prerequisites (before automation):
 
-- Create a Scaleway project (Console: Account > Projects) and an API key with `ElasticMetalFullAccess` + `IPAMFullAccess` (Console: IAM > API Keys). No bare-metal server needs to be pre-created—the Terraform modules provision the Elastic Metal servers and also create the Flexible IP IAM application/token automatically in module `005`.
+- Create a Scaleway project (Console: Account > Projects) and an API key with full admin or use a personnal access token (Console: IAM > API Keys or use Scaleway CLI to have a PAT). No bare-metal server needs to be pre-created—the Terraform modules provision the Elastic Metal servers and also create the Flexible IP IAM application/token automatically in module `005`.
 
 Install the local tooling:
 
